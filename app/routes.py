@@ -1,3 +1,7 @@
+# Routes and helper functions for the Solar Monitor Flask app.
+# Provides endpoints for data upload and CSV/JSON APIs.
+#
+# Note: A simpler application entry point exists in app.py.
 # ========== Flask Setup ==========
 from flask import Flask, request, jsonify
 import sqlite3
