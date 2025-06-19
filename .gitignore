@@ -1,3 +1,28 @@
+# Ignore data files
+data/
+db/
+logs/
+upload/
+archive/
+
+# Ignore CSV and ZIP files
+*.csv
+*.zip
+
+# Python artifacts
+__pycache__/
+*.pyc
+
+# Environment files (if any)
+.env
+
+# OS files
+.DS_Store
+
+# Byte-compiled / optimized / DLL files
+*.pyo
+*.pyd
+*.so
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Solar Monitor Dashboard</title>
+
+  <!-- Chart.js and Luxon -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 1rem;
+      margin: auto;
+      max-width: 1200px;
+    }
+    .dashboard {
+      display: flex;
+      flex-direction: row;
+      gap: 1rem;
+    }
+    .sidebar {
+      flex: 1;
+      min-width: 220px;
+    }
+    .main {
+      flex: 3;
+    }
+    .card {
+      background: #f4f4f4;
+      border: 1px solid #ccc;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    button, select, input[type="file"] {
+      font-size: 1rem;
+      padding: 0.6rem;
+      margin-top: 0.5rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    canvas {
+      max-width: 100%;
+      height: 400px;
+    }
+
+    @media (max-width: 700px) {
+      .dashboard {
+        flex-direction: column;
+      }
+      .card {
+        margin-bottom: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Solar Monitor Dashboard</h1>
+
+  <div class="dashboard">
+    <!-- Sidebar (left) -->
+    <div class="sidebar">
+      <div class="card">
+        <a href="https://www.saskpower.com/profile/my-dashboard/my-reports/download-data" target="_blank">
+          📥 Download Your SaskPower Data
+        </a>
+      </div>
+
+      <div class="card">
+        <strong>Latest Usage Date:</strong>
+        <div id="latestUsageDate">Loading…</div>
+      </div>
+
+      <div class="card">
+        <strong>Date Controls</strong>
+        <div style="margin: 0.5rem 0;">
+          <button onclick="changeDate(-1)">⬅️ Previous</button>
+          <button onclick="changeDate(1)">Next ➡️</button>
+        </div>
+
+        <label><input type="checkbox" id="toggleUsage" checked> Show Usage</label><br>
+        <label><input type="checkbox" id="toggleSolar" checked> Show Generation</label>
+
+        <label style="margin-top: 1rem; display: block;">
+          Chart Type:
+          <select id="chartType">
+            <option value="line">Line</option>
+            <option value="bar" selected>Bar</option>
+          </select>
+        </label>
+
+        <input type="file" id="csvUpload" accept=".csv,.zip" onchange="handleUpload(event)">
+      </div>
+
+      <div class="card" id="summaryStats">
+        Loading totals…
+      </div>
+    </div>
+
+    <!-- Chart (right) -->
+    <div class="main">
+      <canvas id="powerChart"></canvas>
+    </div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    let currentStartDate = new Date();
+    let daylightRanges = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const res = await fetch('/power-usage?start=2000-01-01&end=2100-01-01');
+  const usageData = await res.json();      
+  if (!Array.isArray(usageData)) console.error("Usage fetch failed:", usageData);
+
+  if (usageData.length > 0) {
+    const lastTimestamp = usageData[usageData.length - 1].timestamp;
+    const mostRecentDate = new Date(lastTimestamp).toISOString().split('T')[0];
+    document.getElementById('latestUsageDate').textContent = mostRecentDate;
+  }
+
+  currentStartDate = new Date(); // optional, to enforce today's view
+  loadData();
+});
+    function changeDate(direction) {
+      currentStartDate.setDate(currentStartDate.getDate() + direction);
+      loadData();
+    }
+
+    async function loadData() {
+      const start = currentStartDate.toISOString().split('T')[0];
+      const end = start;
+      const chartType = document.getElementById('chartType').value;
+
+      const [usageRes, solarRes, weatherRes] = await Promise.all([
+        fetch(`/power-usage?start=${start}&end=${end}`),
+        fetch(`/solar-generation?start=${start}&end=${end}`),
+        fetch(`/weather?start=${start}&end=${end}`)
+      ]);
+
+      usageData = await usageRes.json();
+      const solarData = await solarRes.json();
+      const weatherData = await weatherRes.json();
+
+      function groupByHour(data, key) {
+        const result = {};
+        data.forEach(d => {
+          const hour = d.timestamp.slice(0, 13) + ':00';
+          result[hour] = (result[hour] || 0) + Number(d[key]);
+        });
+        return result;
+      }
+
+      const usageByHour = groupByHour(usageData, 'power');
+      const solarByHour = groupByHour(solarData, 'energy');
+      const labels = Object.keys({ ...usageByHour, ...solarByHour }).sort();
+      const powerValues = labels.map(hour => -(usageByHour[hour] || 0));
+      const solarValues = labels.map(hour => (solarByHour[hour] || 0) / 1000); // Wh to kWh
+
+      const totalUsage = powerValues.reduce((sum, v) => sum + Math.abs(v), 0).toFixed(2);
+      const totalSolar = solarValues.reduce((sum, v) => sum + v, 0).toFixed(2);
+      document.getElementById('summaryStats').innerText = `Total Usage: ${totalUsage} kWh | Total Solar: ${totalSolar} kWh`;
+
+      daylightRanges = weatherData.map(d => ({
+        start: new Date(d.sunrise),
+        end: new Date(d.sunset)
+      }));
+
+      const datasets = [];
+      if (document.getElementById('toggleUsage').checked) {
+        datasets.push({
+          label: 'Power Usage (kWh)',
+          data: powerValues,
+          backgroundColor: 'rgba(255, 99, 132, 0.5)',
+          borderColor: 'red',
+          fill: false,
+          tension: 0.2,
+          stack: 'energy'
+        });
+      }
+      if (document.getElementById('toggleSolar').checked) {
+        datasets.push({
+          label: 'Solar Generation (kWh)',
+          data: solarValues,
+          backgroundColor: 'rgba(75, 192, 192, 0.5)',
+          borderColor: 'green',
+          fill: false,
+          tension: 0.2,
+          stack: 'energy'
+        });
+      }
+
+      console.log("Labels:", labels);
+      console.log("Usage:", powerValues);
+      console.log("Solar:", solarValues);
+
+      renderChart(labels, datasets, chartType);
+    }
+
+    function renderChart(labels, datasets, type) {
+      const ctx = document.getElementById('powerChart').getContext('2d');
+      if (window.chart) window.chart.destroy();
+
+      const backgroundShadingPlugin = {
+        id: 'backgroundShading',
+        beforeDraw(chart) {
+          const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+          ctx.save();
+          ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+          daylightRanges.forEach(({ start, end }) => {
+            const xStart = x.getPixelForValue(start);
+            const xEnd = x.getPixelForValue(end);
+            if (!isNaN(xStart) && !isNaN(xEnd)) {
+              ctx.fillRect(xStart, top, xEnd - xStart, bottom - top);
+            }
+          });
+          ctx.restore();
+        }
+      };
+
+      const zeroLinePlugin = {
+        id: 'zeroLine',
+        beforeDraw(chart) {
+          const yAxis = chart.scales.y;
+          const yZero = yAxis.getPixelForValue(0);
+          const { ctx, chartArea } = chart;
+          ctx.save();
+          ctx.strokeStyle = '#999';
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          ctx.moveTo(chartArea.left, yZero);
+          ctx.lineTo(chartArea.right, yZero);
+          ctx.stroke();
+          ctx.restore();
+        }
+      };
+
+      window.chart = new Chart(ctx, {
+        type,
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            tooltip: { mode: 'index', intersect: false }
+          },
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                tooltipFormat: 'MMM d, h a',
+                displayFormats: { hour: 'MMM d, h a', day: 'MMM d' }
+              },
+              stacked: true
+            },
+            y: {
+              title: { display: true, text: 'Energy (kWh)' },
+              stacked: true
+            }
+          }
+        },
+        plugins: [backgroundShadingPlugin, zeroLinePlugin]
+      });
+    }
+
+    async function handleUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        alert('Upload successful!');
+        loadData();
+      } else {
+        alert('Upload failed.');
+      }
+    }
+  </script>
+</body>
+</html>

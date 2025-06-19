@@ -1,5 +1,3 @@
-# solarscope
-Bringing SolarEdge and SaskPower data together in a simple dashboard.
 Get daily totals:
 http://your-pi.local:5000/summary/daily?date=2025-04-10
 
