@@ -11,6 +11,7 @@
 - Tailwind CSS responsive/mobile-first layout
 - AJAX chart updates (date navigation, day/week toggle, summary cards)
 - Dashboard chart, summary cards, and navigation are working and bug-free as of June 2025
+- Admin page reorganized into **Settings** and **Functions & Tools** sections; see `docs/admin_refactor_instructions.md`
 
 ### 🚧 In Progress
 - SolarEdge API integration for automatic solar data import
