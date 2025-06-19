@@ -7,11 +7,12 @@
 - File upload and robust CSV import (SaskPower, ZIP/CSV)
 - Usage data import and display
 - Logging and error handling
+- Chart.js v4 dashboard integration (usage & solar bar chart)
+- Tailwind CSS responsive/mobile-first layout
+- AJAX chart updates (date navigation, day/week toggle, summary cards)
+- Dashboard chart, summary cards, and navigation are working and bug-free as of June 2025
 
 ### 🚧 In Progress
-- Chart.js v4 integration for all graphs (usage, solar, weather)
-- Tailwind CSS for responsive/mobile-first layout
-- AJAX/HTMX for dynamic chart updates (date range, filters)
 - SolarEdge API integration for automatic solar data import
 
 ### 🔜 Next Steps
@@ -21,12 +22,13 @@
 - [ ] Live updating (HTMX or Flask-Sock)
 - [ ] Enhanced error handling and user feedback
 - [ ] Polish dashboard for mobile and desktop
+- [ ] Sunrise/sunset and daylight info on dashboard
+- [ ] Automated weather data import (planned for future)
 
 ### 💡 Ideas
 - Weather overlay on usage/generation graphs
 - Export graphs as images
 - User settings and theme customization
-
 ---
 
 ## Tech Stack

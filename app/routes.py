@@ -278,6 +278,22 @@ def set_setting(key, value):
 # ========== Settings API Endpoints ==========
 from flask import request, jsonify
 
+@routes.route('/admin/electricity-cost', methods=['GET', 'POST'])
+def electricity_cost():
+    if request.method == 'POST':
+        cost = request.form.get('electricity_cost')
+        try:
+            if cost is not None:
+                set_setting('electricity_cost', str(float(cost)))
+                return jsonify({'status': 'Saved'})
+            else:
+                return jsonify({'error': 'No cost provided'}), 400
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+    else:
+        val = get_setting('electricity_cost') or ''
+        return jsonify({'electricity_cost': val})
+
 @routes.route('/admin/solar-settings', methods=['GET', 'POST'])
 def solar_settings():
     if request.method == 'POST':
@@ -405,6 +421,107 @@ def admin_fetch_weather():
     ok = fetch_weather_for_dates(start, end)
     return jsonify({'status': 'ok' if ok else 'failed'})
 
+# ========== SolarEdge Data Import Endpoint ==========
+@routes.route('/admin/fetch-solar', methods=['POST'])
+def admin_fetch_solar():
+    start = request.form.get('start_date')
+    end = request.form.get('end_date')
+    if not start or not end:
+        return jsonify({'error': 'Missing start or end date'}), 400
+    ok = import_generation_for_range(start, end)
+    return jsonify({'status': 'ok' if ok else 'failed'})
+
+# ========== SolarEdge Batch Import Endpoint ==========
+@routes.route('/admin/fetch-solar-batch', methods=['POST'])
+def admin_fetch_solar_batch():
+    start = request.form.get('start_date')
+    end = request.form.get('end_date')
+    if not start or not end:
+        return jsonify({'error': 'Missing start or end date'}), 400
+    ok = import_generation_for_range(start, end)
+    return jsonify({'status': 'ok' if ok else 'failed', 'start_date': start, 'end_date': end})
+
+# ========== Dashboard Summary Endpoints ==========
+from datetime import date, timedelta
+
+def get_period_range(period, data_start):
+    today = date.today()
+    # Use the later of data_start or the normal period start
+    if period == 'year':
+        period_start = today.replace(month=1, day=1)
+    elif period == 'month':
+        period_start = today.replace(day=1)
+    elif period == 'week':
+        period_start = today - timedelta(days=today.weekday())
+    else:
+        return None, None
+    # Clamp start to data_start
+    start = max(period_start, data_start)
+    end = today
+    return str(start), str(end)
+
+@routes.route('/summary/totals/<period>')
+def summary_totals(period):
+    """period: year, month, week"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    # Find first and last usage date
+    cur.execute("SELECT MIN(DATE(timestamp)), MAX(DATE(timestamp)) FROM usage")
+    usage_minmax = cur.fetchone()
+    usage_start = usage_minmax[0]
+    usage_end = usage_minmax[1]
+    # Find first and last generation date
+    cur.execute("SELECT MIN(DATE(timestamp)), MAX(DATE(timestamp)) FROM generation")
+    gen_minmax = cur.fetchone()
+    gen_start = gen_minmax[0]
+    gen_end = gen_minmax[1]
+    # Compute the overlap for the period
+    today = date.today()
+    if period == 'year':
+        period_start = today.replace(month=1, day=1)
+    elif period == 'month':
+        period_start = today.replace(day=1)
+    elif period == 'week':
+        period_start = today - timedelta(days=today.weekday())
+    else:
+        conn.close()
+        return jsonify({'error': 'Invalid period'}), 400
+    # Overlapping range: latest of period_start, usage_start, gen_start; earliest of today, usage_end, gen_end
+    overlap_start = max(period_start,
+                       date.fromisoformat(usage_start) if usage_start else period_start,
+                       date.fromisoformat(gen_start) if gen_start else period_start)
+    overlap_end = min(today,
+                     date.fromisoformat(usage_end) if usage_end else today,
+                     date.fromisoformat(gen_end) if gen_end else today)
+    if (usage_start is None or usage_end is None or gen_start is None or gen_end is None or overlap_end < overlap_start):
+        # No overlap
+        conn.close()
+        return jsonify({'period': period, 'start': None, 'end': None, 'total_usage': 0, 'total_generation': 0, 'usage_cost': 0, 'message': 'No overlapping data'}), 200
+    start = str(overlap_start)
+    end = str(overlap_end)
+    # Query totals for overlap
+    cur.execute("SELECT SUM(power) FROM usage WHERE DATE(timestamp) BETWEEN ? AND ?", (start, end))
+    usage = cur.fetchone()[0] or 0.0
+    cur.execute("SELECT SUM(energy) FROM generation WHERE DATE(timestamp) BETWEEN ? AND ?", (start, end))
+    generation = cur.fetchone()[0] or 0.0
+    # Get cost
+    cost = get_setting('electricity_cost')
+    cost = float(cost) if cost else None
+    usage_cost = usage * cost if cost else None
+    # Round values
+    usage = round(usage)
+    generation = round(generation)
+    usage_cost = round(usage_cost) if usage_cost is not None else None
+    conn.close()
+    return jsonify({
+        'period': period,
+        'start': start,
+        'end': end,
+        'total_usage': usage,
+        'total_generation': generation,
+        'usage_cost': usage_cost
+    })
+
 # ========== Weather Data Summary Endpoint ==========
 @routes.route('/admin/weather-summary')
 def weather_summary():
@@ -421,8 +538,51 @@ def weather_summary():
 
 # ========== Stubbed Import Functions ==========
 def import_generation_for_range(start_date, end_date):
-    """Placeholder: Import solar data from SolarEdge API"""
-    log_event(f"[stub] SolarEdge import from {start_date} to {end_date}")
+    """Import solar generation data from SolarEdge API for the given date range."""
+    api_key = get_setting('solaredge_api_key')
+    site_id = get_setting('solaredge_site_id')
+    if not api_key or not site_id:
+        log_event('SolarEdge import failed: Missing API key or Site ID.')
+        return False
+    try:
+        # SolarEdge API: /site/{site_id}/energy
+        url = f"https://monitoringapi.solaredge.com/site/{site_id}/energy"
+        params = {
+            'api_key': api_key,
+            'timeUnit': 'QUARTER_OF_AN_HOUR',
+            'startDate': start_date,
+            'endDate': end_date
+        }
+        resp = requests.get(url, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        if 'energy' not in data or 'values' not in data['energy']:
+            log_event(f"SolarEdge import failed: Unexpected API response for {start_date} to {end_date}.")
+            return False
+        values = data['energy']['values']
+        # Insert each (date, value) into generation table
+        conn = sqlite3.connect(DB_FILE)
+        cur = conn.cursor()
+        count = 0
+        for entry in values:
+            ts = entry.get('date')  # e.g., '2023-06-19 11:00:00'
+            val = entry.get('value')
+            if ts and val is not None:
+                # Convert Wh to kWh (API returns Wh)
+                kwh = float(val) / 1000.0
+                cur.execute("""
+                    INSERT OR REPLACE INTO generation (timestamp, energy)
+                    VALUES (?, ?)
+                """, (ts, kwh))
+                count += 1
+        conn.commit()
+        conn.close()
+        log_event(f"SolarEdge import: {count} records saved for {start_date} to {end_date}.")
+        return True
+    except Exception as e:
+        log_event(f"SolarEdge import failed for {start_date} to {end_date}: {e}")
+        return False
+
 
 def import_weather_for_range(start_date, end_date):
     """Placeholder: Import sunrise/sunset from Open-Meteo"""
