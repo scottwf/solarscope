@@ -1,4 +1,47 @@
-# Development Roadmap
+# SolarScope Roadmap
+
+## 2025 Roadmap & Milestones
+
+### ✅ Core Features
+- Modular Flask backend (Blueprints, session auth)
+- File upload and robust CSV import (SaskPower, ZIP/CSV)
+- Usage data import and display
+- Logging and error handling
+
+### 🚧 In Progress
+- Chart.js v4 integration for all graphs (usage, solar, weather)
+- Tailwind CSS for responsive/mobile-first layout
+- AJAX/HTMX for dynamic chart updates (date range, filters)
+- SolarEdge API integration for automatic solar data import
+
+### 🔜 Next Steps
+- [ ] Add chartjs-plugin-zoom for mobile pinch/zoom
+- [ ] Sticky summary card for daily totals (mobile UX)
+- [ ] Button group filters ("Today", "This Week", etc.)
+- [ ] Live updating (HTMX or Flask-Sock)
+- [ ] Enhanced error handling and user feedback
+- [ ] Polish dashboard for mobile and desktop
+
+### 💡 Ideas
+- Weather overlay on usage/generation graphs
+- Export graphs as images
+- User settings and theme customization
+
+---
+
+## Tech Stack
+- Flask (Python)
+- Chart.js v4 (JS)
+- Tailwind CSS
+- AJAX/HTMX
+- SQLite
+
+---
+
+## How to Contribute
+- See README for setup and development instructions.
+- PRs and issues welcome!
+
 
 This project aims to provide a small web dashboard for viewing SaskPower usage
 data alongside SolarEdge generation data. The following roadmap outlines

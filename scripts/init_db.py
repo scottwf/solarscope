@@ -8,7 +8,7 @@ password 'admin' is created (password is hashed).
 import sqlite3
 from werkzeug.security import generate_password_hash
 
-DB_FILE = '/home/scott/solar-monitor/db/power_data.db'
+DB_FILE = 'db/power_data.db'
 
 conn = sqlite3.connect(DB_FILE)
 cur = conn.cursor()
@@ -35,6 +35,14 @@ CREATE TABLE IF NOT EXISTS weather (
     timestamp TEXT PRIMARY KEY,
     condition TEXT,
     daylight_minutes INTEGER
+)
+''')
+
+# Settings table for API keys and config
+cur.execute('''
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
 )
 ''')
 

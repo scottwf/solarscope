@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SolarScope Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.umd.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+  <header class="bg-white shadow p-4 flex items-center justify-between">
+    <h1 class="text-xl font-bold">SolarScope Dashboard</h1>
+    <div id="summary" class="text-gray-700 text-sm"></div>
+  </header>
+  <main class="flex-1 flex flex-col items-center p-2">
+    <div class="w-full max-w-2xl">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-2 gap-2">
+        <div class="flex gap-2">
+          <button id="todayBtn" class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600">Today</button>
+          <button id="weekBtn" class="px-3 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">This Week</button>
+        </div>
+        <input type="date" id="datePicker" class="border rounded px-2 py-1" />
+      </div>
+      <div class="bg-white rounded shadow p-4">
+        <canvas id="mainChart" class="w-full h-64"></canvas>
+      </div>
+    </div>
+  </main>
+  <footer class="bg-white text-center text-xs text-gray-400 py-2">&copy; 2025 SolarScope</footer>
+  <script>
+    // Utility: format date to YYYY-MM-DD
+    function formatDate(date) {
+      return date.toISOString().split('T')[0];
+    }
+
+    // --- Chart.js Setup ---
+    let chart;
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    function renderChart(labels, usage, solar) {
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Power Usage (kWh)',
+              data: usage,
+              backgroundColor: 'rgba(59,130,246,0.5)',
+              borderColor: 'rgba(59,130,246,1)',
+              borderWidth: 1,
+              yAxisID: 'y',
+            },
+            {
+              label: 'Solar Generation (kWh)',
+              data: solar,
+              backgroundColor: 'rgba(16,185,129,0.4)',
+              borderColor: 'rgba(16,185,129,1)',
+              borderWidth: 1,
+              yAxisID: 'y',
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' },
+            zoom: {
+              pan: { enabled: true, mode: 'x' },
+              zoom: { pinch: { enabled: true }, wheel: { enabled: true }, mode: 'x' }
+            },
+            tooltip: { mode: 'index', intersect: false }
+          },
+          interaction: { mode: 'nearest', axis: 'x', intersect: false },
+          scales: {
+            x: { title: { display: true, text: 'Time' } },
+            y: { title: { display: true, text: 'Energy (kWh)' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    // --- Data Fetching ---
+    async function fetchData(start, end) {
+      const usageRes = await fetch(`/power-usage?start=${start}&end=${end}`);
+      const usageData = await usageRes.json();
+      const solarRes = await fetch(`/solar-generation?start=${start}&end=${end}`);
+      const solarData = await solarRes.json();
+      return { usageData, solarData };
+    }
+
+    // --- Data Processing ---
+    function processData(usageData, solarData, mode) {
+      // mode: 'day' or 'week'
+      let labels = [];
+      let usage = [];
+      let solar = [];
+      if (mode === 'day') {
+        // Group by 15-min interval
+        labels = usageData.map(row => row.timestamp.slice(11, 16));
+        usage = usageData.map(row => row.power);
+        // Solar: match by timestamp
+        const solarMap = Object.fromEntries(solarData.map(row => [row.timestamp, row.energy]));
+        solar = usageData.map(row => solarMap[row.timestamp] || 0);
+      } else {
+        // Group by date, sum
+        const usageByDay = {};
+        const solarByDay = {};
+        usageData.forEach(row => {
+          const day = row.timestamp.slice(0, 10);
+          usageByDay[day] = (usageByDay[day] || 0) + row.power;
+        });
+        solarData.forEach(row => {
+          const day = row.timestamp.slice(0, 10);
+          solarByDay[day] = (solarByDay[day] || 0) + row.energy;
+        });
+        labels = Object.keys(usageByDay).sort();
+        usage = labels.map(day => usageByDay[day]);
+        solar = labels.map(day => solarByDay[day] || 0);
+      }
+      return { labels, usage, solar };
+    }
+
+    // --- UI State ---
+    let mode = 'day'; // 'day' or 'week'
+    let selectedDate = formatDate(new Date());
+
+    document.getElementById('datePicker').value = selectedDate;
+    document.getElementById('todayBtn').onclick = () => {
+      mode = 'day';
+      selectedDate = formatDate(new Date());
+      document.getElementById('datePicker').value = selectedDate;
+      updateChart();
+    };
+    document.getElementById('weekBtn').onclick = () => {
+      mode = 'week';
+      updateChart();
+    };
+    document.getElementById('datePicker').onchange = (e) => {
+      selectedDate = e.target.value;
+      mode = 'day';
+      updateChart();
+    };
+
+    async function updateChart() {
+      let start, end;
+      if (mode === 'day') {
+        start = end = selectedDate;
+      } else {
+        const d = new Date(selectedDate);
+        const weekAgo = new Date(d.getTime() - 6 * 24 * 60 * 60 * 1000);
+        start = formatDate(weekAgo);
+        end = formatDate(d);
+      }
+      const { usageData, solarData } = await fetchData(start, end);
+      const { labels, usage, solar } = processData(usageData, solarData, mode);
+      renderChart(labels, usage, solar);
+      // Update summary
+      const totalUsage = usage.reduce((a, b) => a + b, 0).toFixed(2);
+      const totalSolar = solar.reduce((a, b) => a + b, 0).toFixed(2);
+      document.getElementById('summary').textContent = `Total Usage: ${totalUsage} kWh | Total Solar: ${totalSolar} kWh`;
+    }
+
+    // Initial load
+    updateChart();
+  </script>
+</body>
+</html>

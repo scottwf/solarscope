@@ -5,6 +5,9 @@ logs/
 upload/
 archive/
 
+# Python virtual environment
+venv/
+
 # Ignore CSV and ZIP files
 *.csv
 *.zip

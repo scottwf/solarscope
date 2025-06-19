@@ -1,9 +1,11 @@
 # Routes and helper functions for the Solar Monitor Flask app.
 # Provides endpoints for data upload and CSV/JSON APIs.
 #
-# Note: A simpler application entry point exists in app.py.
+# Note: This file is now a Flask Blueprint to be registered in app.py.
 # ========== Flask Setup ==========
-from flask import Flask, request, jsonify
+from flask import Blueprint, request, jsonify
+
+routes = Blueprint('routes', __name__)
 import sqlite3
 import os
 import tempfile
@@ -11,12 +13,11 @@ import zipfile
 import pandas as pd
 from datetime import datetime
 
-app = Flask(__name__)
 
 # ========== Configuration ==========
-DB_FILE = '/home/scott/solar-monitor/db/power_data.db'
-UPLOAD_FOLDER = '/home/scott/solar-monitor/data'
-LOG_FILE = '/home/scott/solar-monitor/logs/activity.log'
+DB_FILE = 'db/power_data.db'
+UPLOAD_FOLDER = 'upload'
+LOG_FILE = 'logs/activity.log'
 
 # ========== Logging Function ==========
 def log_event(message):
@@ -26,7 +27,7 @@ def log_event(message):
         f.write(f"[{timestamp}] {message}\n")
 
 # ========== Weather API Route ==========
-@app.route('/weather')
+@routes.route('/weather')
 def get_weather():
     """API endpoint to fetch sunrise/sunset for a date range"""
     start = request.args.get('start')
@@ -51,7 +52,7 @@ def get_weather():
     return jsonify([dict(row) for row in rows])
 
 # ========== Upload Endpoint ==========
-@app.route('/upload', methods=['POST'])
+@routes.route('/upload', methods=['POST'])
 def upload_file():
     """Handle uploaded .csv or .zip files from SaskPower"""
     if 'file' not in request.files:
@@ -78,16 +79,24 @@ def upload_file():
                 if fname.endswith('.csv'):
                     full_path = os.path.join(tmp_dir, fname)
                     log_event(f"Processed CSV from ZIP: {fname}")
-                    start, end = import_csv(full_path)
-                    date_ranges.append((start, end))
+                    result = import_csv(full_path)
+                    if result is not None:
+                        start, end = result
+                        date_ranges.append((start, end))
+                    else:
+                        log_event(f"Skipped CSV (missing columns): {fname}")
 
         # Handle CSV uploads
         elif filename.endswith('.csv'):
             csv_path = os.path.join(tmp_dir, filename)
             uploaded_file.save(csv_path)
             log_event(f"Uploaded CSV file: {filename}")
-            start, end = import_csv(csv_path)
-            date_ranges.append((start, end))
+            result = import_csv(csv_path)
+            if result is not None:
+                start, end = result
+                date_ranges.append((start, end))
+            else:
+                log_event(f"Skipped CSV (missing columns): {filename}")
 
         else:
             return jsonify({"error": "Unsupported file type"}), 400
@@ -111,28 +120,34 @@ def upload_file():
 # ========== CSV Import Helper ==========
 def import_csv(path):
     """Read a SaskPower CSV and insert usage into the database"""
-    df = pd.read_csv(path)
+    df = pd.read_csv(path, delimiter=None)
 
+    # Support both legacy and new SaskPower formats
     if 'Date' in df.columns and 'Time' in df.columns and 'Power (kW)' in df.columns:
         df['timestamp'] = pd.to_datetime(df['Date'] + ' ' + df['Time'])
         df['power'] = df['Power (kW)'].astype(float)
+    elif 'DateTime' in df.columns and 'Consumption' in df.columns:
+        df['timestamp'] = pd.to_datetime(df['DateTime'])
+        df['power'] = df['Consumption'].astype(float)
+    else:
+        return None
 
-        conn = sqlite3.connect(DB_FILE)
-        cur = conn.cursor()
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
 
-        for _, row in df.iterrows():
-            cur.execute("""
-                INSERT OR REPLACE INTO usage (timestamp, power)
-                VALUES (?, ?)
-            """, (row['timestamp'].strftime('%Y-%m-%d %H:%M:%S'), row['power']))
+    for _, row in df.iterrows():
+        cur.execute("""
+            INSERT OR REPLACE INTO usage (timestamp, power)
+            VALUES (?, ?)
+        """, (row['timestamp'].strftime('%Y-%m-%d %H:%M:%S'), row['power']))
 
-        conn.commit()
-        conn.close()
+    conn.commit()
+    conn.close()
 
-        return df['timestamp'].min().date(), df['timestamp'].max().date()
+    return df['timestamp'].min().date(), df['timestamp'].max().date()
 
 # ========== Log Viewer ==========
-@app.route('/log')
+@routes.route('/log')
 def view_log():
     """Simple web UI to view the last 300 lines of the log file"""
     if not os.path.exists(LOG_FILE):
@@ -147,7 +162,7 @@ def view_log():
     )
 
 # ========== Power Usage ==========    
-@app.route('/power-usage')
+@routes.route('/power-usage')
 def power_usage():
     """Fetch usage data with optional CSV output"""
     start = request.args.get('start')
@@ -180,7 +195,7 @@ def power_usage():
     return jsonify([dict(row) for row in rows])
 
 # ========== Solar Generation ==========
-@app.route('/solar-generation')
+@routes.route('/solar-generation')
 def solar_generation():
     """Fetch solar generation with optional CSV output"""
     start = request.args.get('start')
@@ -212,7 +227,7 @@ def solar_generation():
     return jsonify([dict(row) for row in rows])
 
 # ========== Daily Usage ==========  
-@app.route('/summary/daily')
+@routes.route('/summary/daily')
 def daily_summary():
     """Return total usage + generation for a single date"""
     date = request.args.get('date')
@@ -244,6 +259,166 @@ def daily_summary():
         "total_generation_kWh": generation_total
     })  
     
+# ========== Settings Helpers ==========
+def get_setting(key):
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM settings WHERE key = ?", (key,))
+    row = cur.fetchone()
+    conn.close()
+    return row[0] if row else None
+
+def set_setting(key, value):
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+    conn.commit()
+    conn.close()
+
+# ========== Settings API Endpoints ==========
+from flask import request, jsonify
+
+@routes.route('/admin/solar-settings', methods=['GET', 'POST'])
+def solar_settings():
+    if request.method == 'POST':
+        api_key = request.form.get('api_key', '')
+        site_id = request.form.get('site_id', '')
+        set_setting('solaredge_api_key', api_key)
+        set_setting('solaredge_site_id', site_id)
+        return jsonify({'status': 'Saved'})
+    else:
+        return jsonify({
+            'api_key': get_setting('solaredge_api_key') or '',
+            'site_id': get_setting('solaredge_site_id') or ''
+        })
+
+import requests
+
+# Geocode city to lat/lon using Nominatim
+def geocode_city(city):
+    try:
+        url = f"https://nominatim.openstreetmap.org/search"
+        params = {"q": city, "format": "json", "limit": 1}
+        headers = {"User-Agent": "solarscope-app/1.0"}
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        if data:
+            lat = data[0]['lat']
+            lon = data[0]['lon']
+            return float(lat), float(lon)
+        else:
+            return None
+    except Exception as e:
+        log_event(f"Geocoding failed for '{city}': {e}")
+        return None
+
+@routes.route('/admin/weather-settings', methods=['GET', 'POST'])
+def weather_settings():
+    if request.method == 'POST':
+        location = request.form.get('location')
+        start_date = request.form.get('weather_start_date')
+        response = {'status': 'Saved'}
+        if location is not None:
+            set_setting('weather_location', location)
+            # Geocode city to lat/lon
+            coords = geocode_city(location)
+            if coords:
+                set_setting('weather_lat', str(coords[0]))
+                set_setting('weather_lon', str(coords[1]))
+                response['lat'] = coords[0]
+                response['lon'] = coords[1]
+            else:
+                response['warning'] = 'Could not geocode city. Please check spelling.'
+        if start_date is not None:
+            set_setting('weather_start_date', start_date)
+            response['weather_start_date'] = start_date
+        return jsonify(response)
+    else:
+        return jsonify({
+            'location': get_setting('weather_location') or '',
+            'lat': get_setting('weather_lat') or '',
+            'lon': get_setting('weather_lon') or '',
+            'weather_start_date': get_setting('weather_start_date') or '2022-01-01'
+        })
+
+# ========== Weather Fetch Implementation ==========
+from datetime import datetime, timedelta
+
+def fetch_weather_for_dates(start_date, end_date):
+    lat = get_setting('weather_lat')
+    lon = get_setting('weather_lon')
+    if not lat or not lon:
+        log_event('Weather fetch failed: No coordinates set.')
+        return False
+    # Build date list
+    d0 = datetime.strptime(str(start_date), '%Y-%m-%d')
+    d1 = datetime.strptime(str(end_date), '%Y-%m-%d')
+    days = [(d0 + timedelta(days=i)).date() for i in range((d1-d0).days+1)]
+    for day in days:
+        url = f"https://archive-api.open-meteo.com/v1/archive"
+        params = {
+            'latitude': lat,
+            'longitude': lon,
+            'start_date': str(day),
+            'end_date': str(day),
+            'daily': 'sunrise,sunset,weathercode',
+            'timezone': 'auto'
+        }
+        try:
+            r = requests.get(url, params=params, timeout=10)
+            r.raise_for_status()
+            data = r.json()['daily']
+            sunrise = data['sunrise'][0]
+            sunset = data['sunset'][0]
+            weathercode = data['weathercode'][0] # int code
+
+            # Store in DB
+            conn = sqlite3.connect(DB_FILE)
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT OR REPLACE INTO weather (timestamp, condition, daylight_minutes)
+                VALUES (?, ?, ?)
+            """, (str(day), f"code:{weathercode}", _daylight_minutes(sunrise, sunset)))
+            conn.commit()
+            conn.close()
+            log_event(f"Weather for {day} saved: code={weathercode}")
+        except Exception as e:
+            log_event(f"Weather fetch failed for {day}: {e}")
+    return True
+
+def _daylight_minutes(sunrise, sunset):
+    # sunrise/sunset: '2025-06-19T04:47', returns minutes
+    try:
+        t1 = datetime.strptime(sunrise, '%Y-%m-%dT%H:%M')
+        t2 = datetime.strptime(sunset, '%Y-%m-%dT%H:%M')
+        return int((t2-t1).total_seconds()//60)
+    except:
+        return None
+
+@routes.route('/admin/fetch-weather', methods=['POST'])
+def admin_fetch_weather():
+    start = request.form.get('start_date')
+    end = request.form.get('end_date')
+    if not start or not end:
+        return jsonify({'error': 'Missing start or end date'}), 400
+    ok = fetch_weather_for_dates(start, end)
+    return jsonify({'status': 'ok' if ok else 'failed'})
+
+# ========== Weather Data Summary Endpoint ==========
+@routes.route('/admin/weather-summary')
+def weather_summary():
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute("SELECT MIN(timestamp), MAX(timestamp), COUNT(*) FROM weather")
+    row = cur.fetchone()
+    conn.close()
+    return jsonify({
+        'first': row[0],
+        'last': row[1],
+        'count': row[2]
+    })
+
 # ========== Stubbed Import Functions ==========
 def import_generation_for_range(start_date, end_date):
     """Placeholder: Import solar data from SolarEdge API"""

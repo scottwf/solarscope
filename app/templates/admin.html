@@ -1,0 +1,188 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SolarScope Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+  <header class="bg-white shadow p-4 flex items-center justify-between">
+    <h1 class="text-xl font-bold">SolarScope Admin Panel</h1>
+    <a href="/" class="text-blue-600 hover:underline">Dashboard</a>
+  </header>
+  <div class="w-full max-w-xl mx-auto mt-4">
+    <a href="https://www.saskpower.com/accounts-services/manage-your-account/myaccount" target="_blank" rel="noopener" class="block mb-4 px-4 py-2 bg-blue-100 text-blue-800 rounded hover:bg-blue-200 text-center font-semibold">⬇️ Download Your SaskPower Data</a>
+  </div>
+  <main class="flex-1 flex flex-col items-center p-2">
+    <div class="w-full max-w-xl bg-white rounded shadow p-6 mt-4">
+      <h2 class="text-lg font-semibold mb-4">Data Upload</h2>
+      <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/upload">
+        <input type="file" name="file" class="mb-2" required />
+        <button type="submit" class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600">Upload</button>
+      </form>
+      <div id="uploadStatus" class="text-sm mt-2"></div>
+      <hr class="my-6">
+      <h2 class="text-lg font-semibold mb-4">Change Password</h2>
+      <form id="passwordForm" method="POST" action="/change-password">
+        <input type="password" name="old_password" placeholder="Current Password" class="border rounded px-2 py-1 mb-2 w-full" required><br>
+        <input type="password" name="new_password" placeholder="New Password" class="border rounded px-2 py-1 mb-2 w-full" required><br>
+        <button type="submit" class="px-3 py-1 rounded bg-green-500 text-white hover:bg-green-600">Change Password</button>
+      </form>
+      <div id="passwordStatus" class="text-sm mt-2"></div>
+      <hr class="my-6">
+      <h2 class="text-lg font-semibold mb-4">SolarEdge API Settings</h2>
+      <form id="solarForm" method="POST" action="/admin/solar-settings">
+        <input type="text" id="solarApiKey" name="api_key" placeholder="API Key" class="border rounded px-2 py-1 mb-2 w-full"><br>
+        <input type="text" id="solarSiteId" name="site_id" placeholder="Site ID" class="border rounded px-2 py-1 mb-2 w-full"><br>
+        <button type="submit" class="px-3 py-1 rounded bg-yellow-500 text-white hover:bg-yellow-600">Save Settings</button>
+      </form>
+      <div id="solarStatus" class="text-sm mt-2"></div>
+<script>
+// AJAX for SolarEdge settings
+window.addEventListener('DOMContentLoaded', function() {
+  fetch('/admin/solar-settings').then(res => res.json()).then(data => {
+    document.getElementById('solarApiKey').value = data.api_key || '';
+    document.getElementById('solarSiteId').value = data.site_id || '';
+  });
+  document.getElementById('solarForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const res = await fetch('/admin/solar-settings', { method: 'POST', body: formData });
+    const data = await res.json();
+    document.getElementById('solarStatus').textContent = data.status || data.error || 'Unknown error';
+  };
+});
+</script>
+      <hr class="my-6">
+      <h2 class="text-lg font-semibold mb-4">Weather Location Settings</h2>
+      <form id="weatherForm" method="POST" action="/admin/weather-settings">
+        <input type="text" id="weatherLocation" name="location" placeholder="City (e.g. Saskatoon, SK or Regina, SK)" class="border rounded px-2 py-1 mb-2 w-full"><br>
+        <button type="submit" class="px-3 py-1 rounded bg-indigo-500 text-white hover:bg-indigo-600">Save Location</button>
+      </form>
+      <div id="weatherStatus" class="text-sm mt-2"></div>
+      <hr class="my-6">
+      <h2 class="text-lg font-semibold mb-4">Weather Import Settings</h2>
+      <form id="weatherStartForm" class="mb-2">
+        <label for="weatherStartDate" class="block text-sm mb-1">Earliest date to import weather data:</label>
+        <input type="date" id="weatherStartDate" name="weather_start_date" value="2022-01-01" class="border rounded px-2 py-1 mb-2 w-full">
+        <button type="submit" class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600">Save Start Date</button>
+      </form>
+      <button id="fetchWeatherBtn" class="px-3 py-1 rounded bg-green-500 text-white hover:bg-green-600 mb-2">Fetch Weather Data</button>
+      <div id="weatherFetchStatus" class="text-sm mt-2"></div>
+<div id="weatherSummary" class="text-xs text-gray-600 mt-2"></div>
+<!-- Open-Meteo does NOT require an API key -->
+<script>
+// Weather summary viewer
+async function updateWeatherSummary() {
+  const res = await fetch('/admin/weather-summary');
+  if (res.ok) {
+    const data = await res.json();
+    let msg;
+    if (data.count > 0) {
+      msg = `Weather data: ${data.count} days, from ${data.first} to ${data.last}`;
+    } else {
+      msg = 'No weather data imported yet.';
+    }
+    document.getElementById('weatherSummary').textContent = msg;
+  }
+}
+window.addEventListener('DOMContentLoaded', updateWeatherSummary);
+// Also update after fetch
+const oldFetchWeatherBtn = document.getElementById('fetchWeatherBtn').onclick;
+document.getElementById('fetchWeatherBtn').onclick = async function() {
+  if (oldFetchWeatherBtn) await oldFetchWeatherBtn();
+  setTimeout(updateWeatherSummary, 2000); // Give backend a moment to finish
+};
+</script>
+<script>
+// Weather import: load and save start date
+window.addEventListener('DOMContentLoaded', async function() {
+  // Load saved date
+  const res = await fetch('/admin/weather-settings');
+  if (res.ok) {
+    const data = await res.json();
+    if (data.weather_start_date) {
+      document.getElementById('weatherStartDate').value = data.weather_start_date;
+    }
+  }
+  // Save start date
+  document.getElementById('weatherStartForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const date = document.getElementById('weatherStartDate').value;
+    const fd = new FormData();
+    fd.append('weather_start_date', date);
+    await fetch('/admin/weather-settings', { method: 'POST', body: fd });
+    document.getElementById('weatherFetchStatus').textContent = 'Start date saved.';
+  };
+  // Fetch weather data
+  document.getElementById('fetchWeatherBtn').onclick = async function() {
+    const start = document.getElementById('weatherStartDate').value;
+    const today = new Date().toISOString().slice(0,10);
+    const fd = new FormData();
+    fd.append('start_date', start);
+    fd.append('end_date', today);
+    document.getElementById('weatherFetchStatus').textContent = 'Fetching weather data...';
+    const res = await fetch('/admin/fetch-weather', { method: 'POST', body: fd });
+    const data = await res.json();
+    document.getElementById('weatherFetchStatus').textContent = data.status === 'ok' ? 'Weather data imported!' : 'Weather import failed.';
+  };
+});
+</script>
+<script>
+// On page load, pre-fill weather location
+window.addEventListener('DOMContentLoaded', async function() {
+  // Weather form prefill
+  const res = await fetch('/admin/weather-settings');
+  if (res.ok) {
+    const data = await res.json();
+    if (data.location !== undefined) {
+      document.getElementById('weatherLocation').value = data.location;
+    }
+    if (data.lat && data.lon) {
+      document.getElementById('weatherStatus').textContent = `Saved location: ${data.location} (lat: ${data.lat}, lon: ${data.lon})`;
+    }
+  }
+  // Weather form AJAX
+  document.getElementById('weatherForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const res = await fetch('/admin/weather-settings', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.lat && data.lon) {
+      document.getElementById('weatherStatus').textContent = `Saved location: ${formData.get('location')} (lat: ${data.lat}, lon: ${data.lon})`;
+    } else {
+      document.getElementById('weatherStatus').textContent = data.status || data.error || 'Unknown error';
+    }
+  };
+});
+</script>
+    </div>
+  </main>
+  <footer class="bg-white text-center text-xs text-gray-400 py-2">&copy; 2025 SolarScope</footer>
+  <script>
+    // AJAX for upload
+    document.getElementById('uploadForm').onsubmit = async function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      const res = await fetch('/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      document.getElementById('uploadStatus').textContent = data.status || data.error || 'Unknown error';
+    };
+    // AJAX for password change
+    document.getElementById('passwordForm').onsubmit = async function(e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      const res = await fetch('/change-password', { method: 'POST', body: formData });
+      const data = await res.json();
+      document.getElementById('passwordStatus').textContent = data.status || data.error || 'Unknown error';
+    };
+    // AJAX for solar settings (stub)
+    document.getElementById('solarForm').onsubmit = async function(e) {
+      e.preventDefault();
+      document.getElementById('solarStatus').textContent = 'Saved (stub, not implemented)';
+    };
+  </script>
+</body>
+</html>

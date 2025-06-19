@@ -12,10 +12,14 @@ from flask import (
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 
-DB_FILE = '/home/scott/solar-monitor/db/power_data.db'
+DB_FILE = 'db/power_data.db'
 
 app = Flask(__name__)
 app.secret_key = 'change-me'
+
+# Register routes Blueprint
+from routes import routes
+app.register_blueprint(routes)
 
 def query_db(query, params=(), as_dict=True):
     conn = sqlite3.connect(DB_FILE)
@@ -193,11 +197,19 @@ def change_password():
     return jsonify({'status': 'success'})
 
 
+from flask import render_template
+
+@app.route('/')
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    return send_from_directory('static', 'dashboard.html')
+    return render_template('dashboard.html')
+
+@app.route('/admin')
+@login_required
+def admin():
+    return render_template('admin.html')
 
 # ========== RUN APP ==========
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5005, debug=True)
