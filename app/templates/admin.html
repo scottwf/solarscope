@@ -88,6 +88,65 @@
       </div>
 
     </section>
+=======
+    <div class="w-full max-w-xl bg-white rounded shadow p-6 mt-4">
+      <h2 class="text-lg font-semibold mb-4">Data Upload</h2>
+      <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/upload">
+        <input type="file" name="file" class="mb-2" required />
+        <button type="submit" class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600">Upload</button>
+      </form>
+      <div id="uploadStatus" class="text-sm mt-2"></div>
+      <hr class="my-6">
+      <h2 class="text-lg font-semibold mb-4">Change Password</h2>
+      <form id="passwordForm" method="POST" action="/change-password">
+        <input type="password" name="old_password" placeholder="Current Password" class="border rounded px-2 py-1 mb-2 w-full" required><br>
+        <input type="password" name="new_password" placeholder="New Password" class="border rounded px-2 py-1 mb-2 w-full" required><br>
+        <button type="submit" class="px-3 py-1 rounded bg-green-500 text-white hover:bg-green-600">Change Password</button>
+      </form>
+      <div id="passwordStatus" class="text-sm mt-2"></div>
+      <hr class="my-6">
+      <h2 class="text-lg font-semibold mb-4">SolarEdge API Settings</h2>
+      <form id="solarForm" method="POST" action="/admin/solar-settings">
+        <input type="text" id="solarApiKey" name="api_key" placeholder="API Key" class="border rounded px-2 py-1 mb-2 w-full"><br>
+        <input type="text" id="solarSiteId" name="site_id" placeholder="Site ID" class="border rounded px-2 py-1 mb-2 w-full"><br>
+        <button type="submit" class="px-3 py-1 rounded bg-yellow-500 text-white hover:bg-yellow-600">Save Settings</button>
+      </form>
+      <div id="solarStatus" class="text-sm mt-2"></div>
+      <form id="costForm" class="mt-2 flex items-center gap-2">
+        <label for="electricityCost" class="text-sm">Electricity Cost (per kWh):</label>
+        <input type="number" step="0.0001" min="0" id="electricityCost" name="electricity_cost" class="border rounded px-2 py-1 w-28" placeholder="e.g. 0.14">
+        <button type="submit" class="px-3 py-1 rounded bg-blue-400 text-white hover:bg-blue-500">Save</button>
+        <span id="costStatus" class="text-xs ml-2"></span>
+      </form>
+<script>
+// AJAX for electricity cost
+window.addEventListener('DOMContentLoaded', function() {
+  fetch('/admin/electricity-cost').then(res => res.json()).then(data => {
+    document.getElementById('electricityCost').value = data.electricity_cost || '';
+  });
+  document.getElementById('costForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const res = await fetch('/admin/electricity-cost', { method: 'POST', body: formData });
+    const data = await res.json();
+    document.getElementById('costStatus').textContent = data.status || data.error || 'Unknown error';
+  };
+});
+</script>
+      <!-- SolarEdge Mass Import UI -->
+      <form id="solarImportForm" class="mb-2 flex flex-col md:flex-row md:items-end gap-2">
+        <label class="block text-sm">Start date:
+          <input type="date" id="solarImportStart" name="start_date" class="border rounded px-2 py-1" required>
+        </label>
+        <label class="block text-sm">End date:
+          <input type="date" id="solarImportEnd" name="end_date" class="border rounded px-2 py-1" required>
+        </label>
+        <button type="submit" class="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700">Import SolarEdge Data</button>
+      </form>
+      <div id="solarImportStatus" class="text-sm mt-2"></div>
+      <button id="solarPrevMonthBtn" class="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700 mt-2">Import Previous Month</button>
+      <div id="solarPrevMonthStatus" class="text-sm mt-1"></div>
+>>>>>>> Stashed changes
 <script>
 // AJAX for SolarEdge settings
 window.addEventListener('DOMContentLoaded', function() {
@@ -102,8 +161,182 @@ window.addEventListener('DOMContentLoaded', function() {
     const data = await res.json();
     document.getElementById('solarStatus').textContent = data.status || data.error || 'Unknown error';
   };
+  // SolarEdge mass import
+  document.getElementById('solarImportForm').onsubmit = async function(e) {
+    e.preventDefault();
+    const start = document.getElementById('solarImportStart').value;
+    const end = document.getElementById('solarImportEnd').value;
+    if (!start || !end) {
+      document.getElementById('solarImportStatus').textContent = 'Please select both start and end dates.';
+      return;
+    }
+    document.getElementById('solarImportStatus').textContent = 'Importing...';
+    const fd = new FormData();
+    fd.append('start_date', start);
+    fd.append('end_date', end);
+    try {
+      const res = await fetch('/admin/fetch-solar', {method: 'POST', body: fd});
+      const data = await res.json();
+      if (data.status === 'ok') {
+        document.getElementById('solarImportStatus').textContent = 'SolarEdge import completed.';
+      } else {
+        document.getElementById('solarImportStatus').textContent = data.error || 'Import failed.';
+      }
+    } catch (err) {
+      document.getElementById('solarImportStatus').textContent = 'Import failed: ' + err;
+    }
+  };
+
+  // Import Previous Month button logic
+  document.getElementById('solarPrevMonthBtn').onclick = async function() {
+    const btn = this;
+    btn.disabled = true;
+    document.getElementById('solarPrevMonthStatus').textContent = '';
+    // Calculate previous full month
+    const today = new Date();
+    let year = today.getFullYear();
+    let month = today.getMonth(); // 0=Jan, so this month
+    if (month === 0) { // If January, go to previous December
+      year -= 1;
+      month = 12;
+    }
+    // Previous month is (year, month)
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0); // Last day prev month
+    const pad = n => n.toString().padStart(2, '0');
+    const startStr = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-01`;
+    const endStr = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
+    // Fill date pickers for user clarity
+    document.getElementById('solarImportStart').value = startStr;
+    document.getElementById('solarImportEnd').value = endStr;
+    document.getElementById('solarImportStatus').textContent = '';
+    document.getElementById('solarPrevMonthStatus').textContent = 'Importing previous month...';
+    const fd = new FormData();
+    fd.append('start_date', startStr);
+    fd.append('end_date', endStr);
+    try {
+      const res = await fetch('/admin/fetch-solar', {method: 'POST', body: fd});
+      const data = await res.json();
+      if (data.status === 'ok') {
+        document.getElementById('solarPrevMonthStatus').textContent = 'Previous month import completed.';
+      } else {
+        document.getElementById('solarPrevMonthStatus').textContent = data.error || 'Import failed.';
+      }
+    } catch (err) {
+      document.getElementById('solarPrevMonthStatus').textContent = 'Import failed: ' + err;
+    }
+    btn.disabled = false;
+  };
 });
 </script>
+
+          let last = new Date(end);
+          current.setDate(1);
+          last.setDate(1);
+          while (current <= last) {
+            let y = current.getFullYear(), m = current.getMonth();
+            let monthStart = `${y}-${String(m+1).padStart(2,'0')}-01`;
+            let monthEndDate = new Date(y, m+1, 0);
+            let monthEnd = `${y}-${String(m+1).padStart(2,'0')}-${String(monthEndDate.getDate()).padStart(2,'0')}`;
+            out.push({start: monthStart, end: monthEnd});
+            current.setMonth(m+1);
+          }
+          return out;
+        }
+
+        async function runBatch() {
+          batchRunning = true;
+          batchPaused = false;
+          batchAbort = false;
+          document.getElementById('solarBatchPauseBtn').disabled = false;
+          document.getElementById('solarBatchResumeBtn').disabled = true;
+          document.getElementById('solarBatchStartBtn').disabled = true;
+          document.getElementById('solarBatchError').textContent = '';
+          for (; batchIndex < batchMonths.length; ++batchIndex) {
+            if (batchAbort) break;
+            if (batchPaused) {
+              document.getElementById('solarBatchProgress').textContent += '\nPaused.';
+              break;
+            }
+            let m = batchMonths[batchIndex];
+            document.getElementById('solarBatchProgress').textContent = `Importing ${m.start} to ${m.end} (${batchIndex+1} of ${batchMonths.length})...`;
+            try {
+              const fd = new FormData();
+              fd.append('start_date', m.start);
+              fd.append('end_date', m.end);
+              let res = await fetch('/admin/fetch-solar-batch', {method: 'POST', body: fd});
+              let data = await res.json();
+              if (data.status !== 'ok') {
+                document.getElementById('solarBatchError').textContent = `Error importing ${m.start} to ${m.end}: ${data.error || 'Failed.'}`;
+                batchPaused = true;
+                document.getElementById('solarBatchPauseBtn').disabled = true;
+                document.getElementById('solarBatchResumeBtn').disabled = false;
+                return;
+              }
+            } catch (err) {
+              document.getElementById('solarBatchError').textContent = `Error importing ${m.start} to ${m.end}: ${err}`;
+              batchPaused = true;
+              document.getElementById('solarBatchPauseBtn').disabled = true;
+              document.getElementById('solarBatchResumeBtn').disabled = false;
+              return;
+            }
+            await new Promise(r => setTimeout(r, 1000)); // 1s delay between months
+          }
+          if (!batchPaused && !batchAbort) {
+            document.getElementById('solarBatchProgress').textContent = `Batch import complete! (${batchMonths.length} months)`;
+            document.getElementById('solarBatchPauseBtn').disabled = true;
+            document.getElementById('solarBatchResumeBtn').disabled = true;
+            document.getElementById('solarBatchStartBtn').disabled = false;
+          }
+          batchRunning = false;
+        }
+
+        document.getElementById('solarBatchStartBtn').onclick = async function() {
+          let start = document.getElementById('solarBatchStart').value;
+          if (!start) {
+            document.getElementById('solarBatchError').textContent = 'Please select a start date.';
+            return;
+          }
+          let now = new Date();
+          let today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+          batchMonths = monthRange(start, today);
+          batchIndex = 0;
+          document.getElementById('solarBatchProgress').textContent = '';
+          document.getElementById('solarBatchError').textContent = '';
+          await runBatch();
+        };
+        document.getElementById('solarBatchPauseBtn').onclick = function() {
+          batchPaused = true;
+          document.getElementById('solarBatchPauseBtn').disabled = true;
+          document.getElementById('solarBatchResumeBtn').disabled = false;
+          document.getElementById('solarBatchProgress').textContent += '\nPaused.';
+        };
+        document.getElementById('solarBatchResumeBtn').onclick = async function() {
+          if (!batchPaused) return;
+          batchPaused = false;
+          document.getElementById('solarBatchPauseBtn').disabled = false;
+          document.getElementById('solarBatchResumeBtn').disabled = true;
+          await runBatch();
+        };
+      })();
+      </script>
+      <h2 class="text-lg font-semibold mb-4">Weather Location Settings</h2>
+      <form id="weatherForm" method="POST" action="/admin/weather-settings">
+        <input type="text" id="weatherLocation" name="location" placeholder="City (e.g. Saskatoon, SK or Regina, SK)" class="border rounded px-2 py-1 mb-2 w-full"><br>
+        <button type="submit" class="px-3 py-1 rounded bg-indigo-500 text-white hover:bg-indigo-600">Save Location</button>
+      </form>
+      <div id="weatherStatus" class="text-sm mt-2"></div>
+      <hr class="my-6">
+      <h2 class="text-lg font-semibold mb-4">Weather Import Settings</h2>
+      <form id="weatherStartForm" class="mb-2">
+        <label for="weatherStartDate" class="block text-sm mb-1">Earliest date to import weather data:</label>
+        <input type="date" id="weatherStartDate" name="weather_start_date" value="2022-01-01" class="border rounded px-2 py-1 mb-2 w-full">
+        <button type="submit" class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600">Save Start Date</button>
+      </form>
+      <button id="fetchWeatherBtn" class="px-3 py-1 rounded bg-green-500 text-white hover:bg-green-600 mb-2">Fetch Weather Data</button>
+      <div id="weatherFetchStatus" class="text-sm mt-2"></div>
+<div id="weatherSummary" class="text-xs text-gray-600 mt-2"></div>
+>>>>>>> Stashed changes
 <!-- Open-Meteo does NOT require an API key -->
 <script>
 // Weather summary viewer
