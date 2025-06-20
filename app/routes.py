@@ -11,7 +11,7 @@ import os
 import tempfile
 import zipfile
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 # ========== Configuration ==========
@@ -257,7 +257,40 @@ def daily_summary():
         "date": date,
         "total_usage_kWh": usage_total,
         "total_generation_kWh": generation_total
-    })  
+    })
+
+# ========== Weekly Usage ==========
+@routes.route('/summary/weekly')
+def weekly_summary():
+    """Return total usage and generation for a week given the start date"""
+    start = request.args.get('start')
+    if not start:
+        return jsonify({"error": "Missing start"}), 400
+    try:
+        d0 = datetime.strptime(start, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"error": "Invalid date"}), 400
+    end = d0 + timedelta(days=6)
+
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT ROUND(SUM(power), 2) FROM usage WHERE DATE(timestamp) BETWEEN ? AND ?",
+        (str(d0), str(end))
+    )
+    usage_total = cur.fetchone()[0] or 0.0
+    cur.execute(
+        "SELECT ROUND(SUM(energy)/1000.0, 2) FROM generation WHERE DATE(timestamp) BETWEEN ? AND ?",
+        (str(d0), str(end))
+    )
+    gen_total = cur.fetchone()[0] or 0.0
+    conn.close()
+    return jsonify({
+        "start": str(d0),
+        "end": str(end),
+        "total_usage_kWh": usage_total,
+        "total_generation_kWh": gen_total
+    })
     
 # ========== Settings Helpers ==========
 def get_setting(key):
@@ -430,6 +463,12 @@ def admin_fetch_solar():
         return jsonify({'error': 'Missing start or end date'}), 400
     ok = import_generation_for_range(start, end)
     return jsonify({'status': 'ok' if ok else 'failed'})
+
+# ========== SolarEdge Sync Status Endpoint ==========
+@routes.route('/solar-sync-status')
+def solar_sync_status():
+    last_update = get_setting('solaredge_last_update')
+    return jsonify({'last_update': last_update})
 
 # ========== SolarEdge Batch Import Endpoint ==========
 @routes.route('/admin/fetch-solar-batch', methods=['POST'])
