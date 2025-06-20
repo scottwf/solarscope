@@ -33,6 +33,7 @@ A modern, mobile-friendly dashboard for visualizing and analyzing your solar and
    ```
 4. **Visit:**
    - Dashboard: [http://localhost:5005/dashboard](http://localhost:5005/dashboard)
+   - Admin: [http://localhost:5005/admin](http://localhost:5005/admin) (manage SolarEdge, weather, and upload/download)
    - API: `/power-usage`, `/solar-generation`, `/summary/daily`, etc.
 
 ---
@@ -43,6 +44,8 @@ A modern, mobile-friendly dashboard for visualizing and analyzing your solar and
 - **Upload SaskPower CSV/ZIP**: Drag-and-drop or select your data file
 - **Daily/weekly/monthly summaries**
 - **Download your data as CSV**
+- **Admin page**: Streamlined settings for SolarEdge API, weather location (with validation and feedback), and user-friendly upload/download tools
+- **Improved error handling and feedback** throughout the admin panel
 
 ---
 
@@ -73,7 +76,8 @@ A modern, mobile-friendly dashboard for visualizing and analyzing your solar and
 - [x] Modular Flask backend
 - [x] File upload and CSV import
 - [x] Chart.js v4 integration
-- [ ] SolarEdge API integration
+- [~] SolarEdge API integration (settings, manual import, UI/UX done; auto-fetch in progress)
+- [x] Admin page redesign and error feedback improvements
 - [ ] Enhanced mobile dashboard
 - [ ] Live updating (HTMX or Flask-Sock)
 
