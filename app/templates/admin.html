@@ -90,6 +90,7 @@
       <!-- SolarEdge Data Import -->
       <div class="mb-6">
         <h3 class="font-semibold mb-2">SolarEdge Data Import</h3>
+        <div class="text-xs text-gray-600 mb-2">Last updated: <span id="solarLastUpdate">never</span></div>
         <form id="solarImportForm" class="mb-2">
           <label for="solarImportStart" class="block text-sm mb-1">Start Date:</label>
           <input type="date" id="solarImportStart" name="start_date" class="border rounded px-2 py-1 mb-2 w-full">
@@ -144,6 +145,16 @@
           document.getElementById('solarStatus').textContent = data.status || data.error || 'Unknown error';
         };
       }
+
+      // SolarEdge sync status polling
+      const solarLastUpdate = document.getElementById('solarLastUpdate');
+      async function loadSolarStatus() {
+        const res = await fetch('/solar-sync-status');
+        const data = await res.json();
+        if (solarLastUpdate) solarLastUpdate.textContent = data.last_update || 'never';
+      }
+      loadSolarStatus();
+      setInterval(loadSolarStatus, 60000);
 
       // SolarEdge Batch Import
       const solarImportForm = document.getElementById('solarImportForm');

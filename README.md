@@ -42,10 +42,11 @@ A modern, mobile-friendly dashboard for visualizing and analyzing your solar and
 - **Interactive graphs** for power usage and solar generation
 - **Mobile-first**: Responsive layout, touch-friendly graphs
 - **Upload SaskPower CSV/ZIP**: Drag-and-drop or select your data file
-- **Daily/weekly/monthly summaries**
+- **Day/week toggle** with daily and weekly summaries
 - **Download your data as CSV**
 - **Admin page**: Streamlined settings for SolarEdge API, weather location (with validation and feedback), and user-friendly upload/download tools
 - **Improved error handling and feedback** throughout the admin panel
+- **Automatic SolarEdge sync** every 15 minutes
 
 ---
 
@@ -76,7 +77,7 @@ A modern, mobile-friendly dashboard for visualizing and analyzing your solar and
 - [x] Modular Flask backend
 - [x] File upload and CSV import
 - [x] Chart.js v4 integration
-- [~] SolarEdge API integration (settings, manual import, UI/UX done; auto-fetch in progress)
+- [x] SolarEdge API integration with automatic 15-minute sync
 - [x] Admin page redesign and error feedback improvements
 - [ ] Enhanced mobile dashboard
 - [ ] Live updating (HTMX or Flask-Sock)
@@ -85,4 +86,3 @@ A modern, mobile-friendly dashboard for visualizing and analyzing your solar and
 
 ## License
 MIT
-2025-04-10 06:15:00,72.3

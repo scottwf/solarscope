@@ -18,8 +18,21 @@ app = Flask(__name__)
 app.secret_key = 'change-me'
 
 # Register routes Blueprint
-from routes import routes
+from routes import routes, import_generation_for_range, set_setting
 app.register_blueprint(routes)
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime, timedelta
+
+# Background scheduler for automatic SolarEdge sync
+def solar_sync_job():
+    start = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+    end = datetime.now().strftime('%Y-%m-%d')
+    if import_generation_for_range(start, end):
+        set_setting('solaredge_last_update', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
+scheduler = BackgroundScheduler(daemon=True)
+scheduler.add_job(solar_sync_job, 'interval', minutes=15)
+scheduler.start()
 
 def query_db(query, params=(), as_dict=True):
     conn = sqlite3.connect(DB_FILE)

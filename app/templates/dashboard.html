@@ -30,6 +30,14 @@
           <button id="prevBtn" class="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">&#8592;</button>
           <input type="date" id="datePicker" class="border rounded px-2 py-1 text-center" />
           <button id="nextBtn" class="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">&#8594;</button>
+          <div class="ml-4 inline-flex rounded border bg-gray-200" id="viewToggle">
+            <button id="dayToggle" class="px-2 py-1 rounded-l bg-blue-500 text-white">Day</button>
+            <button id="weekToggle" class="px-2 py-1 rounded-r text-gray-700">Week</button>
+          </div>
+          <div class="ml-4 flex gap-1" id="rangeButtons">
+            <button id="rangeToday" class="px-2 py-1 rounded bg-gray-100">Today</button>
+            <button id="rangeWeek" class="px-2 py-1 rounded bg-gray-100">This Week</button>
+          </div>
         </div>
         <!-- Mobile Cards Below Chart -->
         <div id="summaryCardsMobile" class="grid grid-cols-1 xs:grid-cols-2 gap-3 mt-4 md:hidden"></div>
@@ -136,11 +144,42 @@
       let mode = 'day'; // 'day' or 'week'
       let selectedDate = formatDate(new Date());
 
-    document.getElementById('datePicker').onchange = (e) => {
-      selectedDate = e.target.value;
-      mode = 'day';
-      updateChart();
-    };
+      const dayToggle = document.getElementById('dayToggle');
+      const weekToggle = document.getElementById('weekToggle');
+      function updateToggleButtons() {
+        if (mode === 'day') {
+          dayToggle.classList.add('bg-blue-500','text-white');
+          weekToggle.classList.remove('bg-blue-500','text-white');
+        } else {
+          weekToggle.classList.add('bg-blue-500','text-white');
+          dayToggle.classList.remove('bg-blue-500','text-white');
+        }
+      }
+      dayToggle.onclick = () => { if (mode !== 'day') { mode = 'day'; updateToggleButtons(); updateChart(); } };
+      weekToggle.onclick = () => { if (mode !== 'week') { mode = 'week'; updateToggleButtons(); updateChart(); } };
+      updateToggleButtons();
+
+      document.getElementById('rangeToday').onclick = () => {
+        selectedDate = formatDate(new Date());
+        mode = 'day';
+        document.getElementById('datePicker').value = selectedDate;
+        updateToggleButtons();
+        updateChart();
+      };
+      document.getElementById('rangeWeek').onclick = () => {
+        selectedDate = formatDate(new Date());
+        mode = 'week';
+        document.getElementById('datePicker').value = selectedDate;
+        updateToggleButtons();
+        updateChart();
+      };
+      
+      document.getElementById('datePicker').onchange = (e) => {
+        selectedDate = e.target.value;
+        mode = 'day';
+        updateToggleButtons();
+        updateChart();
+      };
 
     // Navigation buttons
     document.getElementById('prevBtn').onclick = () => {

@@ -3,3 +3,4 @@ python-dotenv
 werkzeug
 pandas
 requests
+APScheduler

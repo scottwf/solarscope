@@ -14,19 +14,16 @@
 - Admin page reorganized into **Settings** and **Functions & Tools** sections; see `docs/admin_refactor_instructions.md`
 - **Admin UI/UX redesign (2025-06): grouped settings, inline help, improved error feedback, upload/download workflow**
 - **Weather location validation and user feedback (2025-06)**
-
-### 🚧 In Progress
-- SolarEdge API integration (settings, manual import, UI/UX complete; auto-fetch in progress)
-
+- **Automated SolarEdge background sync (2025-06)**
 ### 🔜 Next Steps
 - [ ] Add chartjs-plugin-zoom for mobile pinch/zoom
 - [ ] Sticky summary card for daily totals (mobile UX)
-- [ ] Button group filters ("Today", "This Week", etc.)
+- [x] Button group filters ("Today", "This Week", etc.)
 - [ ] Live updating (HTMX or Flask-Sock)
 - [ ] Enhanced error handling and user feedback (ongoing)
 - [ ] Polish dashboard for mobile and desktop
 - [ ] Sunrise/sunset and daylight info on dashboard
-- [ ] Automated weather and SolarEdge data import
+- [ ] Automated weather data import
 
 ### 💡 Ideas
 - Weather overlay on usage/generation graphs
