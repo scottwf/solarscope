@@ -6,9 +6,15 @@ password 'admin' is created (password is hashed).
 """
 
 import sqlite3
+import os
 from werkzeug.security import generate_password_hash
 
 DB_FILE = 'db/power_data.db'
+
+# Create necessary directories
+os.makedirs('db', exist_ok=True)
+os.makedirs('logs', exist_ok=True)
+os.makedirs('upload', exist_ok=True)
 
 conn = sqlite3.connect(DB_FILE)
 cur = conn.cursor()

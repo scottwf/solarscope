@@ -120,30 +120,60 @@ def upload_file():
 # ========== CSV Import Helper ==========
 def import_csv(path):
     """Read a SaskPower CSV and insert usage into the database"""
-    df = pd.read_csv(path, delimiter=None)
+    try:
+        df = pd.read_csv(path, delimiter=None)
+    except Exception as e:
+        log_event(f"CSV parsing failed: {e}")
+        return None
+
+    if df.empty:
+        log_event("CSV file is empty")
+        return None
 
     # Support both legacy and new SaskPower formats
     if 'Date' in df.columns and 'Time' in df.columns and 'Power (kW)' in df.columns:
-        df['timestamp'] = pd.to_datetime(df['Date'] + ' ' + df['Time'])
-        df['power'] = df['Power (kW)'].astype(float)
+        try:
+            df['timestamp'] = pd.to_datetime(df['Date'] + ' ' + df['Time'])
+            df['power'] = df['Power (kW)'].astype(float)
+        except Exception as e:
+            log_event(f"Failed to parse Date/Time format: {e}")
+            return None
     elif 'DateTime' in df.columns and 'Consumption' in df.columns:
-        df['timestamp'] = pd.to_datetime(df['DateTime'])
-        df['power'] = df['Consumption'].astype(float)
+        try:
+            df['timestamp'] = pd.to_datetime(df['DateTime'])
+            df['power'] = df['Consumption'].astype(float)
+        except Exception as e:
+            log_event(f"Failed to parse DateTime format: {e}")
+            return None
     else:
+        log_event(f"CSV columns not recognized. Found: {list(df.columns)}")
+        return None
+
+    # Validate data
+    if df['timestamp'].isna().any():
+        log_event("CSV contains invalid timestamps")
+        return None
+    if df['power'].isna().any():
+        log_event("CSV contains invalid power values")
         return None
 
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
 
     for _, row in df.iterrows():
-        cur.execute("""
-            INSERT OR REPLACE INTO usage (timestamp, power)
-            VALUES (?, ?)
-        """, (row['timestamp'].strftime('%Y-%m-%d %H:%M:%S'), row['power']))
+        try:
+            cur.execute("""
+                INSERT OR REPLACE INTO usage (timestamp, power)
+                VALUES (?, ?)
+            """, (row['timestamp'].strftime('%Y-%m-%d %H:%M:%S'), row['power']))
+        except Exception as e:
+            log_event(f"Failed to insert row: {e}")
+            continue
 
     conn.commit()
     conn.close()
 
+    log_event(f"CSV import successful: {len(df)} rows")
     return df['timestamp'].min().date(), df['timestamp'].max().date()
 
 # ========== Log Viewer ==========
@@ -624,5 +654,5 @@ def import_generation_for_range(start_date, end_date):
 
 
 def import_weather_for_range(start_date, end_date):
-    """Placeholder: Import sunrise/sunset from Open-Meteo"""
-    log_event(f"[stub] Weather import from {start_date} to {end_date}")
+    """Import sunrise/sunset from Open-Meteo"""
+    return fetch_weather_for_dates(start_date, end_date)

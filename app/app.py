@@ -7,21 +7,31 @@ session. Credentials are stored in the SQLite database with hashed passwords.
 
 from flask import (
     Flask, request, jsonify, send_from_directory,
-    session, redirect, url_for
+    session, redirect, url_for, render_template
 )
+from functools import wraps
 import sqlite3
+import os
+import logging
 from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+from datetime import datetime, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
 
-DB_FILE = 'db/power_data.db'
+load_dotenv()
+
+DB_FILE = os.getenv('DATABASE_URL', 'db/power_data.db')
+
+os.makedirs('db', exist_ok=True)
+os.makedirs('logs', exist_ok=True)
+os.makedirs('upload', exist_ok=True)
 
 app = Flask(__name__)
-app.secret_key = 'change-me'
+app.secret_key = os.getenv('FLASK_SECRET_KEY', 'change-me-in-production')
 
 # Register routes Blueprint
 from routes import routes, import_generation_for_range, set_setting
 app.register_blueprint(routes)
-from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime, timedelta
 
 # Background scheduler for automatic SolarEdge sync
 def solar_sync_job():
@@ -34,143 +44,31 @@ scheduler = BackgroundScheduler(daemon=True)
 scheduler.add_job(solar_sync_job, 'interval', minutes=15)
 scheduler.start()
 
-def query_db(query, params=(), as_dict=True):
+def get_user(username):
     conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row if as_dict else None
+    conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute(query, params)
+    cur.execute("SELECT id, username, password_hash FROM users WHERE username=?", (username,))
     rows = cur.fetchall()
     conn.close()
-    return [dict(row) for row in rows] if as_dict else rows
-
-
-def get_user(username):
-    rows = query_db(
-        "SELECT id, username, password_hash FROM users WHERE username=?",
-        (username,),
-    )
-    return rows[0] if rows else None
+    return dict(rows[0]) if rows else None
 
 
 def login_required(func):
-    from functools import wraps
-
     @wraps(func)
     def wrapper(*args, **kwargs):
         if not session.get('user_id'):
             return redirect(url_for('login'))
         return func(*args, **kwargs)
-
     return wrapper
 
 
 @app.before_request
 def require_login():
-    if request.endpoint in {'login', 'static'}:
+    if request.endpoint in {'login', 'static', 'routes.view_log'}:
         return
     if not session.get('user_id'):
         return redirect(url_for('login'))
-
-# ========== USAGE DATA ==========
-
-@app.route('/power-usage')
-@login_required
-def power_usage():
-    date = request.args.get('date')
-    start = request.args.get('start')
-    end = request.args.get('end')
-    hour = request.args.get('hour')
-    between = request.args.get('between')
-
-    where = []
-    params = []
-
-    if date:
-        where.append("DATE(timestamp) = DATE(?)")
-        params.append(date)
-    if start:
-        where.append("timestamp >= ?")
-        params.append(start)
-    if end:
-        where.append("timestamp <= ?")
-        params.append(end)
-    if hour:
-        where.append("CAST(STRFTIME('%H', timestamp) AS INTEGER) = ?")
-        params.append(int(hour))
-    if between:
-        try:
-            t1, t2 = between.split('-')
-            where.append("TIME(timestamp) BETWEEN TIME(?) AND TIME(?)")
-            params += [t1.strip(), t2.strip()]
-        except:
-            pass
-
-    clause = "WHERE " + " AND ".join(where) if where else ""
-    query = f"SELECT timestamp, power FROM usage {clause} ORDER BY timestamp ASC"
-    return jsonify(query_db(query, params))
-
-@app.route('/summary/daily')
-@login_required
-def summary_daily():
-    query = """
-    SELECT DATE(timestamp) AS date, ROUND(SUM(power), 2) AS total_power
-    FROM usage
-    GROUP BY DATE(timestamp)
-    ORDER BY DATE(timestamp)
-    """
-    return jsonify(query_db(query))
-
-@app.route('/summary/hourly')
-@login_required
-def summary_hourly():
-    query = """
-    SELECT STRFTIME('%H', timestamp) AS hour, ROUND(AVG(power), 3) AS avg_power
-    FROM usage
-    GROUP BY STRFTIME('%H', timestamp)
-    ORDER BY hour
-    """
-    return jsonify(query_db(query))
-
-# ========== SOLAR GENERATION ==========
-
-@app.route('/solar-generation')
-@login_required
-def solar_generation():
-    start = request.args.get('start')
-    end = request.args.get('end')
-
-    where = []
-    params = []
-    if start:
-        where.append("timestamp >= ?")
-        params.append(start)
-    if end:
-        where.append("timestamp <= ?")
-        params.append(end)
-
-    clause = "WHERE " + " AND ".join(where) if where else ""
-    query = f"SELECT timestamp, energy FROM generation {clause} ORDER BY timestamp ASC"
-    return jsonify(query_db(query, params))
-
-# ========== WEATHER DATA ==========
-
-@app.route('/weather')
-@login_required
-def weather_data():
-    start = request.args.get('start')
-    end = request.args.get('end')
-
-    if not start or not end:
-        return jsonify({"error": "Missing start or end"}), 400
-    query = """
-    SELECT date, sunrise, sunset
-    FROM weather
-    WHERE date BETWEEN ? AND ?
-    ORDER BY date
-    """
-    return jsonify(query_db(query, [start, end]))
-
-# ========== DASHBOARD VIEW ==========
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -182,8 +80,8 @@ def login():
             session['user_id'] = user['id']
             session['username'] = user['username']
             return redirect(url_for('dashboard'))
-        return 'Invalid credentials', 401
-    return send_from_directory('static', 'login.html')
+        return render_template('login.html', error='Invalid credentials'), 401
+    return render_template('login.html')
 
 
 @app.route('/logout')
@@ -209,8 +107,6 @@ def change_password():
     conn.close()
     return jsonify({'status': 'success'})
 
-
-from flask import render_template
 
 @app.route('/')
 @app.route('/dashboard')
