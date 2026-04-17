@@ -61,6 +61,37 @@ CREATE TABLE IF NOT EXISTS users (
 )
 ''')
 
+# Billing history (imported from SaskPower bill breakdown)
+cur.execute('''
+CREATE TABLE IF NOT EXISTS billing_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bill_date TEXT UNIQUE,
+    usage_kwh REAL,
+    total_charges REAL,
+    electrical_charges REAL,
+    carbon_charges REAL,
+    taxes_fees REAL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+''')
+
+# Solar ROI statistics
+cur.execute('''
+CREATE TABLE IF NOT EXISTS solar_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    period_start TEXT,
+    period_end TEXT,
+    usage_kwh REAL,
+    generation_kwh REAL,
+    self_consumption_kwh REAL,
+    exported_kwh REAL,
+    avoided_cost REAL,
+    net_metering_credit REAL,
+    actual_savings REAL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+''')
+
 # Create default admin user if none exists
 cur.execute("SELECT COUNT(*) FROM users")
 if cur.fetchone()[0] == 0:

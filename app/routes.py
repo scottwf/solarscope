@@ -656,3 +656,216 @@ def import_generation_for_range(start_date, end_date):
 def import_weather_for_range(start_date, end_date):
     """Import sunrise/sunset from Open-Meteo"""
     return fetch_weather_for_dates(start_date, end_date)
+
+
+# ========== Historical Billing Data Import ==========
+def import_bill_breakdown(path):
+    """Import SaskPower bill breakdown CSV"""
+    try:
+        df = pd.read_csv(path)
+        conn = sqlite3.connect(DB_FILE)
+        cur = conn.cursor()
+
+        for _, row in df.iterrows():
+            try:
+                bill_date = pd.to_datetime(row['BillIssueDate']).strftime('%Y-%m-%d')
+                usage = float(row['ConsumptionKwh'])
+                total = float(row['TotalCharges'])
+                electrical = float(row['ElectricalCharges'])
+                carbon = float(row.get('FederalCarbonChargeTotal', 0) or 0)
+                taxes = total - electrical - carbon
+
+                cur.execute("""
+                    INSERT OR REPLACE INTO billing_history
+                    (bill_date, usage_kwh, total_charges, electrical_charges, carbon_charges, taxes_fees)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (bill_date, usage, total, electrical, carbon, taxes))
+            except Exception as e:
+                log_event(f"Failed to insert bill row: {e}")
+                continue
+
+        conn.commit()
+        conn.close()
+        log_event(f"Bill breakdown import successful: {len(df)} records")
+        return True
+    except Exception as e:
+        log_event(f"Bill breakdown import failed: {e}")
+        return False
+
+
+def import_meter_history(path):
+    """Import SaskPower meter read history CSV"""
+    try:
+        df = pd.read_csv(path)
+        df = df.sort_values('Read Date').reset_index(drop=True)
+
+        conn = sqlite3.connect(DB_FILE)
+        cur = conn.cursor()
+
+        prev_reading = 0
+        for _, row in df.iterrows():
+            try:
+                read_date = pd.to_datetime(row['Read Date']).strftime('%Y-%m-%d')
+                current_reading = int(row['Meter Read'])
+
+                # Skip invalid readings (reading shouldn't go backwards significantly)
+                if current_reading < prev_reading:
+                    if (prev_reading - current_reading) > 100:
+                        log_event(f"Skipped invalid meter reading on {read_date}: {current_reading} (previous: {prev_reading})")
+                        continue
+
+                prev_reading = current_reading
+            except Exception as e:
+                log_event(f"Failed to process meter reading: {e}")
+                continue
+
+        conn.close()
+        log_event(f"Meter history import processed: {len(df)} records")
+        return True
+    except Exception as e:
+        log_event(f"Meter history import failed: {e}")
+        return False
+
+
+# ========== Admin Endpoints for Historical Data ==========
+@routes.route('/admin/import-bill-breakdown', methods=['POST'])
+def admin_import_bill_breakdown():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    uploaded_file = request.files['file']
+    if uploaded_file.filename == '':
+        return jsonify({"error": "Empty filename"}), 400
+
+    try:
+        tmp_dir = tempfile.mkdtemp()
+        filepath = os.path.join(tmp_dir, uploaded_file.filename)
+        uploaded_file.save(filepath)
+
+        success = import_bill_breakdown(filepath)
+        return jsonify({"status": "success" if success else "failed"})
+    except Exception as e:
+        log_event(f"Bill breakdown upload failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@routes.route('/admin/import-meter-history', methods=['POST'])
+def admin_import_meter_history():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    uploaded_file = request.files['file']
+    if uploaded_file.filename == '':
+        return jsonify({"error": "Empty filename"}), 400
+
+    try:
+        tmp_dir = tempfile.mkdtemp()
+        filepath = os.path.join(tmp_dir, uploaded_file.filename)
+        uploaded_file.save(filepath)
+
+        success = import_meter_history(filepath)
+        return jsonify({"status": "success" if success else "failed"})
+    except Exception as e:
+        log_event(f"Meter history upload failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ========== ROI Calculations ==========
+@routes.route('/roi/summary')
+def roi_summary():
+    """Calculate total savings and ROI metrics"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+
+    # Get solar installation date (earliest generation record)
+    cur.execute("SELECT MIN(DATE(timestamp)) FROM generation")
+    solar_start = cur.fetchone()[0]
+
+    if not solar_start:
+        conn.close()
+        return jsonify({"error": "No solar data available"}), 400
+
+    # Get billing data before and after solar
+    cur.execute("""
+        SELECT SUM(electrical_charges), SUM(usage_kwh)
+        FROM billing_history
+        WHERE bill_date < ?
+    """, (solar_start,))
+    pre_solar = cur.fetchone()
+
+    cur.execute("""
+        SELECT SUM(electrical_charges), SUM(usage_kwh)
+        FROM billing_history
+        WHERE bill_date >= ?
+    """, (solar_start,))
+    post_solar = cur.fetchone()
+
+    # Get generation data
+    cur.execute("""
+        SELECT SUM(energy) FROM generation
+        WHERE DATE(timestamp) >= ?
+    """, (solar_start,))
+    total_generation = cur.fetchone()[0] or 0
+
+    conn.close()
+
+    # Calculate metrics
+    pre_cost = pre_solar[0] or 0
+    pre_usage = pre_solar[1] or 0
+    post_cost = post_solar[0] or 0
+    post_usage = post_solar[1] or 0
+
+    # Net metering: 50% credit on exported power (excess generation)
+    net_metering_credit = (total_generation * 0.5) * 0.12  # Rough rate estimate
+
+    # Avoided cost (usage reduction * rate)
+    usage_reduction = max(0, pre_usage - post_usage)
+    avoided_cost = usage_reduction * 0.12  # Rough rate estimate
+
+    # Total savings (cost reduction + net metering credit)
+    total_savings = max(0, pre_cost - post_cost) + net_metering_credit
+
+    return jsonify({
+        "solar_start_date": solar_start,
+        "pre_solar_cost": round(pre_cost, 2),
+        "post_solar_cost": round(post_cost, 2),
+        "total_generation_kwh": round(total_generation, 2),
+        "total_savings": round(total_savings, 2),
+        "net_metering_credit": round(net_metering_credit, 2),
+        "avoided_cost": round(avoided_cost, 2),
+        "monthly_savings": round(total_savings / 12, 2) if total_savings > 0 else 0
+    })
+
+
+@routes.route('/roi/monthly-comparison')
+def roi_monthly_comparison():
+    """Get monthly pre/post solar comparison"""
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+
+    cur.execute("SELECT MIN(DATE(timestamp)) FROM generation")
+    solar_start = cur.fetchone()[0]
+
+    if not solar_start:
+        conn.close()
+        return jsonify([]), 400
+
+    cur.execute("""
+        SELECT
+            bill_date,
+            usage_kwh,
+            electrical_charges,
+            (CASE WHEN bill_date < ? THEN 'pre' ELSE 'post' END) as period
+        FROM billing_history
+        ORDER BY bill_date
+    """, (solar_start,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return jsonify([{
+        "date": row[0],
+        "usage_kwh": row[1],
+        "cost": row[2],
+        "period": row[3]
+    } for row in rows])

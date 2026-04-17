@@ -65,6 +65,8 @@ def login_required(func):
 
 @app.before_request
 def require_login():
+    # Allow unauthenticated access to login page and static files
+    # Allow authenticated API calls from dashboard
     if request.endpoint in {'login', 'static', 'routes.view_log'}:
         return
     if not session.get('user_id'):
