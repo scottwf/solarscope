@@ -219,6 +219,60 @@
 - CSRF protection and HTTPS are critical before public deployment
 - All changes tracked in git with clear commit messages
 
+## 🎯 High-Value Enhancement: Historical Data & ROI Tracking
+
+**STATUS:** Ready to implement (data files ready)
+
+### Import Historical SaskPower Data
+**Files available:**
+- `docs/MySaskPower_20000101_20260417_bill_breakdown_*.csv` - Monthly billing (2020-2026)
+- `docs/MySaskPower_*_meter_read_history.csv` - Meter readings (2024-2026)
+
+**What this enables:**
+1. **Extend usage history back 4+ years** (from 4 months to Jan 2020)
+2. **Pre/post solar comparison** (2020-2024 before panels vs 2025+ after)
+3. **ROI calculation** with actual payment amounts
+4. **Savings dashboard** accounting for 50% net metering credit
+
+**Implementation Steps:**
+1. Create import script for bill breakdown CSV
+2. Create import script for meter read history CSV
+3. Add `billing_history` table to schema
+4. Add ROI/savings calculations
+5. Create savings visualization on dashboard
+
+**Data Schema Needed:**
+```sql
+-- Monthly billing history
+CREATE TABLE billing_history (
+    id INTEGER PRIMARY KEY,
+    bill_date TEXT,
+    usage_kwh INTEGER,
+    total_charges REAL,
+    electrical_charges REAL,
+    carbon_charges REAL,
+    taxes_fees REAL
+)
+
+-- ROI tracking
+CREATE TABLE solar_stats (
+    period_start TEXT,
+    period_end TEXT,
+    usage_kwh INTEGER,
+    generation_kwh INTEGER,
+    self_consumption_kwh INTEGER,
+    exported_kwh INTEGER,
+    avoided_cost REAL,
+    net_metering_credit REAL,
+    actual_savings REAL
+)
+```
+
+**Effort Estimate:** 3-4 hours (medium complexity)
+**Priority:** HIGH (unlocks ROI insights)
+
+---
+
 ## 💡 Future Enhancements (Not in Roadmap)
 
 ### Automatic SaskPower Data Scraping
