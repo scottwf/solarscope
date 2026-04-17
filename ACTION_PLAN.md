@@ -219,6 +219,28 @@
 - CSRF protection and HTTPS are critical before public deployment
 - All changes tracked in git with clear commit messages
 
+## 💡 Future Enhancements (Not in Roadmap)
+
+### Automatic SaskPower Data Scraping
+**Opportunity:** Currently requires manual CSV download from SaskPower portal. Could implement web scraping to auto-fetch latest usage data.
+
+**Approach:**
+- Use Selenium or Playwright to automate SaskPower login and download
+- Store SaskPower credentials securely in settings table (encrypted)
+- Schedule daily scraping (similar to 15-min SolarEdge sync)
+- Automatically import downloaded CSVs
+
+**Challenges:**
+- SaskPower website may change (fragile)
+- Requires user to enable login in settings
+- Terms of Service: verify if scraping is allowed
+- Error handling for auth failures, rate limits
+
+**Alternative:** Check if SaskPower has a public API (currently unknown)
+
+**Effort Estimate:** 4-6 hours (medium complexity)
+**Priority:** Nice-to-have (not critical path)
+
 ---
 
 ## Quick Start for Testing
