@@ -30,6 +30,8 @@
   <form id="solarForm" method="POST" action="/admin/solar-settings">
     <input type="text" id="solarApiKey" name="api_key" placeholder="SolarEdge API Key" class="border rounded px-2 py-1 mb-2 w-full placeholder-gray-400">
     <input type="text" id="solarSiteId" name="site_id" placeholder="SolarEdge Site ID" class="border rounded px-2 py-1 mb-2 w-full placeholder-gray-400">
+    <label class="block text-sm mb-1">Solar Installation Date:</label>
+    <input type="date" id="solarInstallDate" name="install_date" class="border rounded px-2 py-1 mb-2 w-full placeholder-gray-400">
     <button type="submit" class="px-3 py-1 rounded bg-yellow-500 text-white hover:bg-yellow-600">Save Settings</button>
   </form>
   <div id="solarStatus" class="text-sm mt-2"></div>
@@ -160,8 +162,10 @@
       fetch('/admin/solar-settings').then(res => res.json()).then(data => {
         const apiKeyInput = document.getElementById('solarApiKey');
         const siteIdInput = document.getElementById('solarSiteId');
+        const installDateInput = document.getElementById('solarInstallDate');
         if (apiKeyInput) apiKeyInput.value = data.api_key || '';
         if (siteIdInput) siteIdInput.value = data.site_id || '';
+        if (installDateInput) installDateInput.value = data.install_date || '';
       });
       const solarForm = document.getElementById('solarForm');
       if (solarForm) {

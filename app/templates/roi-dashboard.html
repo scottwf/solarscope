@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROI Dashboard - SolarScope</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+  <div class="container mx-auto p-4">
+    <div class="flex flex-row justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold">ROI & Savings Dashboard</h1>
+      <a href="/dashboard" class="text-sm text-blue-600 hover:underline">Back to Dashboard</a>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="bg-white rounded shadow p-2 mb-6 flex gap-2 border-b">
+      <button id="tabAnnual" class="px-4 py-2 font-semibold text-blue-600 border-b-2 border-blue-600 cursor-pointer">Annual Summary</button>
+      <button id="tabCumulative" class="px-4 py-2 font-semibold text-gray-600 border-b-2 border-transparent cursor-pointer hover:text-blue-600">Cumulative Savings</button>
+      <button id="tabMonthly" class="px-4 py-2 font-semibold text-gray-600 border-b-2 border-transparent cursor-pointer hover:text-blue-600">Monthly Details</button>
+    </div>
+
+    <!-- Annual Summary Tab -->
+    <div id="annualTab" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white rounded shadow p-4">
+          <h2 class="text-lg font-bold mb-4">Annual Energy Usage</h2>
+          <canvas id="annualUsageChart" class="w-full h-80"></canvas>
+        </div>
+        <div class="bg-white rounded shadow p-4">
+          <h2 class="text-lg font-bold mb-4">Annual Electrical Costs</h2>
+          <canvas id="annualCostChart" class="w-full h-80"></canvas>
+        </div>
+      </div>
+      <div class="bg-white rounded shadow p-4">
+        <h2 class="text-lg font-bold mb-4">Annual Summary Table</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="border px-4 py-2 text-left">Year</th>
+                <th class="border px-4 py-2 text-right">Usage (kWh)</th>
+                <th class="border px-4 py-2 text-right">Cost ($)</th>
+                <th class="border px-4 py-2 text-right">Avoided Cost ($)</th>
+                <th class="border px-4 py-2 text-right">Cumulative Savings ($)</th>
+                <th class="border px-4 py-2 text-center">Period</th>
+              </tr>
+            </thead>
+            <tbody id="annualTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cumulative Savings Tab -->
+    <div id="cumulativeTab" class="hidden">
+      <div class="bg-white rounded shadow p-4 mb-4">
+        <h2 class="text-lg font-bold mb-4">Cumulative Savings Over Time</h2>
+        <canvas id="cumulativeChart" class="w-full h-96"></canvas>
+      </div>
+      <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded shadow p-4 border border-green-200">
+        <h2 class="text-lg font-bold text-gray-800 mb-4">💰 Total Savings Summary</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-white rounded p-3 shadow-sm">
+            <div class="text-xs text-gray-600">Years with Solar</div>
+            <div id="yearsWithSolar" class="text-2xl font-bold text-blue-600">--</div>
+          </div>
+          <div class="bg-white rounded p-3 shadow-sm">
+            <div class="text-xs text-gray-600">Total Avoided Cost</div>
+            <div id="totalAvoided" class="text-2xl font-bold text-green-600">--</div>
+          </div>
+          <div class="bg-white rounded p-3 shadow-sm">
+            <div class="text-xs text-gray-600">Cost Per Year</div>
+            <div id="costPerYear" class="text-2xl font-bold text-orange-600">--</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Monthly Details Tab -->
+    <div id="monthlyTab" class="hidden">
+      <div class="bg-white rounded shadow p-4 mb-4">
+        <div class="flex gap-4 mb-4 flex-wrap">
+          <div>
+            <label class="block text-sm font-semibold mb-2">Filter by Year:</label>
+            <select id="yearFilter" class="border rounded px-2 py-1">
+              <option value="">All Years</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-2">Filter by Period:</label>
+            <select id="periodFilter" class="border rounded px-2 py-1">
+              <option value="">All</option>
+              <option value="pre">Pre-Solar</option>
+              <option value="post">Post-Solar</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="border px-4 py-2 text-left">Date</th>
+                <th class="border px-4 py-2 text-left">Month</th>
+                <th class="border px-4 py-2 text-right">Usage (kWh)</th>
+                <th class="border px-4 py-2 text-right">Cost ($)</th>
+                <th class="border px-4 py-2 text-right">Avoided Cost ($)</th>
+                <th class="border px-4 py-2 text-center">Period</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let annualData = [];
+    let monthlyData = [];
+    let charts = {};
+
+    async function loadData() {
+      const annualRes = await fetch('/roi/annual-summary', { credentials: 'include' });
+      annualData = await annualRes.json();
+
+      const monthlyRes = await fetch('/roi/monthly-detail', { credentials: 'include' });
+      monthlyData = await monthlyRes.json();
+
+      populateAnnualTab();
+      populateCumulativeTab();
+      populateMonthlyTab();
+
+      // Setup tabs
+      document.getElementById('tabAnnual').onclick = () => switchTab('annual');
+      document.getElementById('tabCumulative').onclick = () => switchTab('cumulative');
+      document.getElementById('tabMonthly').onclick = () => switchTab('monthly');
+    }
+
+    function switchTab(tab) {
+      document.getElementById('annualTab').classList.toggle('hidden', tab !== 'annual');
+      document.getElementById('cumulativeTab').classList.toggle('hidden', tab !== 'cumulative');
+      document.getElementById('monthlyTab').classList.toggle('hidden', tab !== 'monthly');
+
+      document.querySelectorAll('button[id^="tab"]').forEach(b => {
+        b.classList.remove('text-blue-600', 'border-blue-600');
+        b.classList.add('text-gray-600', 'border-transparent');
+      });
+      document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('text-blue-600', 'border-blue-600');
+
+      if (tab === 'annual') renderAnnualCharts();
+      if (tab === 'cumulative') renderCumulativeChart();
+    }
+
+    function populateAnnualTab() {
+      renderAnnualCharts();
+
+      const tbody = document.getElementById('annualTableBody');
+      annualData.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = row.period === 'post' ? 'bg-green-50' : '';
+        tr.innerHTML = `
+          <td class="border px-4 py-2 font-semibold">${row.year}</td>
+          <td class="border px-4 py-2 text-right">${row.total_usage.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+          <td class="border px-4 py-2 text-right">$${row.total_cost.toFixed(2)}</td>
+          <td class="border px-4 py-2 text-right font-semibold">${row.avoided_cost ? '$' + row.avoided_cost.toFixed(2) : '-'}</td>
+          <td class="border px-4 py-2 text-right font-bold text-green-600">${row.cumulative_savings ? '$' + row.cumulative_savings.toFixed(2) : '-'}</td>
+          <td class="border px-4 py-2 text-center text-xs ${row.period === 'post' ? 'bg-green-200 font-bold' : 'bg-gray-200'}">${row.period}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderAnnualCharts() {
+      const ctx1 = document.getElementById('annualUsageChart');
+      const ctx2 = document.getElementById('annualCostChart');
+
+      if (!ctx1 || !ctx2) return;
+
+      const labels = annualData.map(r => r.year);
+      const usageData = annualData.map(r => r.total_usage);
+      const costData = annualData.map(r => r.total_cost);
+      const colors = annualData.map(r => r.period === 'post' ? 'rgba(16,185,129,0.7)' : 'rgba(59,130,246,0.7)');
+      const borderColors = annualData.map(r => r.period === 'post' ? 'rgba(16,185,129,1)' : 'rgba(59,130,246,1)');
+
+      if (charts.usage) charts.usage.destroy();
+      charts.usage = new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Annual Usage (kWh)',
+            data: usageData,
+            backgroundColor: colors,
+            borderColor: borderColors,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+
+      if (charts.cost) charts.cost.destroy();
+      charts.cost = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Annual Cost ($)',
+            data: costData,
+            backgroundColor: colors,
+            borderColor: borderColors,
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    function populateCumulativeTab() {
+      const postSolarData = annualData.filter(r => r.period === 'post');
+      const totalYears = postSolarData.length;
+      const totalSavings = postSolarData[postSolarData.length - 1]?.cumulative_savings || 0;
+      const avgPerYear = totalYears > 0 ? totalSavings / totalYears : 0;
+
+      document.getElementById('yearsWithSolar').textContent = totalYears;
+      document.getElementById('totalAvoided').textContent = '$' + totalSavings.toFixed(2);
+      document.getElementById('costPerYear').textContent = '$' + avgPerYear.toFixed(2);
+
+      renderCumulativeChart();
+    }
+
+    function renderCumulativeChart() {
+      const ctx = document.getElementById('cumulativeChart');
+      if (!ctx) return;
+
+      const cumulativeData = annualData.map(r => r.cumulative_savings);
+      const labels = annualData.map(r => r.year);
+      const colors = annualData.map(r => r.period === 'post' ? 'rgba(34,197,94,0.7)' : 'rgba(200,200,200,0.5)');
+
+      if (charts.cumulative) charts.cumulative.destroy();
+      charts.cumulative = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Cumulative Savings ($)',
+            data: cumulativeData,
+            borderColor: 'rgba(34,197,94,1)',
+            backgroundColor: 'rgba(34,197,94,0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 6,
+            pointBackgroundColor: colors,
+            pointBorderColor: colors,
+            pointBorderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: true } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+
+    function populateMonthlyTab() {
+      const years = [...new Set(monthlyData.map(d => d.year))].sort();
+      const yearFilter = document.getElementById('yearFilter');
+      years.forEach(year => {
+        const opt = document.createElement('option');
+        opt.value = year;
+        opt.textContent = year;
+        yearFilter.appendChild(opt);
+      });
+
+      yearFilter.addEventListener('change', filterMonthlyTable);
+      document.getElementById('periodFilter').addEventListener('change', filterMonthlyTable);
+
+      renderMonthlyTable(monthlyData);
+    }
+
+    function filterMonthlyTable() {
+      const year = document.getElementById('yearFilter').value;
+      const period = document.getElementById('periodFilter').value;
+
+      let filtered = monthlyData;
+      if (year) filtered = filtered.filter(d => d.year == year);
+      if (period) filtered = filtered.filter(d => d.period === period);
+
+      renderMonthlyTable(filtered);
+    }
+
+    function renderMonthlyTable(data) {
+      const tbody = document.getElementById('monthlyTableBody');
+      tbody.innerHTML = '';
+
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = row.period === 'post' ? 'bg-green-50' : '';
+        tr.innerHTML = `
+          <td class="border px-4 py-2">${row.bill_date}</td>
+          <td class="border px-4 py-2 font-semibold">${row.month}</td>
+          <td class="border px-4 py-2 text-right">${row.usage_kwh.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+          <td class="border px-4 py-2 text-right">$${row.cost.toFixed(2)}</td>
+          <td class="border px-4 py-2 text-right font-semibold text-green-600">${row.avoided_cost ? '$' + row.avoided_cost.toFixed(2) : '-'}</td>
+          <td class="border px-4 py-2 text-center text-xs ${row.period === 'post' ? 'bg-green-200 font-bold' : 'bg-gray-200'}">${row.period}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadData);
+  </script>
+</body>
+</html>

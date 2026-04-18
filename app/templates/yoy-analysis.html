@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Year-Over-Year Analysis - SolarScope</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+  <div class="container mx-auto p-4">
+    <div class="flex flex-row justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold">Year-Over-Year Comparison</h1>
+      <a href="/dashboard" class="text-sm text-blue-600 hover:underline">Back to Dashboard</a>
+    </div>
+
+    <!-- Month Selector -->
+    <div class="bg-white rounded shadow p-4 mb-6">
+      <label class="block text-sm font-semibold mb-2">Select Month to Compare:</label>
+      <div class="flex gap-2 flex-wrap">
+        <button id="monthAll" class="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600">All Months</button>
+      </div>
+      <div id="monthButtons" class="flex gap-2 flex-wrap mt-3"></div>
+    </div>
+
+    <!-- Comparison Type Toggle -->
+    <div class="bg-white rounded shadow p-4 mb-6">
+      <div class="flex gap-4">
+        <label class="flex items-center">
+          <input type="radio" name="metric" value="usage" checked class="mr-2"> Usage (kWh)
+        </label>
+        <label class="flex items-center">
+          <input type="radio" name="metric" value="cost" class="mr-2"> Cost ($)
+        </label>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="bg-white rounded shadow p-4">
+      <canvas id="yoyChart" class="w-full h-96"></canvas>
+      <div id="summary" class="text-sm text-gray-600 mt-4 text-center"></div>
+    </div>
+  </div>
+
+  <script>
+    let allData = [];
+    let chart;
+
+    async function loadData() {
+      const res = await fetch('/roi/year-over-year', { credentials: 'include' });
+      allData = await res.json();
+      initializeMonthButtons();
+      renderChart('all', 'usage');
+    }
+
+    function initializeMonthButtons() {
+      const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                      'July', 'August', 'September', 'October', 'November', 'December'];
+      const container = document.getElementById('monthButtons');
+
+      months.forEach(month => {
+        const btn = document.createElement('button');
+        btn.textContent = month;
+        btn.className = 'px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm';
+        btn.onclick = () => {
+          document.querySelectorAll('#monthButtons button').forEach(b => b.classList.remove('bg-blue-500', 'text-white'));
+          document.getElementById('monthAll').classList.remove('bg-blue-500', 'text-white');
+          btn.classList.add('bg-blue-500', 'text-white');
+          renderChart(month, getMetric());
+        };
+        container.appendChild(btn);
+      });
+
+      document.getElementById('monthAll').onclick = () => {
+        document.querySelectorAll('#monthButtons button').forEach(b => b.classList.remove('bg-blue-500', 'text-white'));
+        document.getElementById('monthAll').classList.add('bg-blue-500', 'text-white');
+        renderChart('all', getMetric());
+      };
+
+      document.querySelectorAll('input[name="metric"]').forEach(input => {
+        input.addEventListener('change', () => renderChart(getSelectedMonth(), input.value));
+      });
+    }
+
+    function getMetric() {
+      return document.querySelector('input[name="metric"]:checked').value;
+    }
+
+    function getSelectedMonth() {
+      const active = document.querySelector('#monthButtons button.bg-blue-500, #monthAll.bg-blue-500');
+      return active ? active.textContent : 'all';
+    }
+
+    function renderChart(month, metric) {
+      // Filter data by month if specified
+      let chartData = month === 'all'
+        ? allData
+        : allData.filter(d => d.month === month);
+
+      if (chartData.length === 0) {
+        document.getElementById('summary').textContent = 'No data available for this month';
+        return;
+      }
+
+      // Group by year
+      const byYear = {};
+      chartData.forEach(row => {
+        if (!byYear[row.year]) byYear[row.year] = [];
+        byYear[row.year].push(row);
+      });
+
+      // Build chart data
+      const years = Object.keys(byYear).sort();
+      const labels = month === 'all'
+        ? ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        : ['Data'];
+
+      const datasets = years.map(year => {
+        const data = month === 'all'
+          ? getLabelData(byYear[year], metric)
+          : byYear[year].map(d => metric === 'usage' ? d.usage_kwh : d.cost);
+
+        const isPre = byYear[year][0].period === 'pre';
+        const colors = [
+          'rgba(59,130,246,0.7)',  // blue
+          'rgba(34,197,94,0.7)',   // green
+          'rgba(249,115,22,0.7)',  // orange
+          'rgba(168,85,247,0.7)',  // purple
+          'rgba(236,72,153,0.7)',  // pink
+          'rgba(14,165,233,0.7)',  // sky
+          'rgba(251,146,60,0.7)',  // orange-red
+        ];
+        const colorIdx = years.indexOf(year) % colors.length;
+
+        return {
+          label: `${year} ${isPre ? '(Pre-Solar)' : '(Post-Solar)'}`,
+          data,
+          backgroundColor: colors[colorIdx],
+          borderColor: colors[colorIdx].replace('0.7', '1'),
+          borderWidth: 2,
+          tension: 0.1
+        };
+      });
+
+      if (chart) chart.destroy();
+      const ctx = document.getElementById('yoyChart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: month === 'all' ? 'line' : 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'top' },
+            title: {
+              display: true,
+              text: month === 'all' ? 'Monthly Usage Pattern (All Years)' : `${month} Comparison`
+            }
+          },
+          scales: {
+            y: {
+              title: { display: true, text: metric === 'usage' ? 'Usage (kWh)' : 'Cost ($)' },
+              beginAtZero: true
+            }
+          }
+        }
+      });
+
+      updateSummary(chartData, metric);
+    }
+
+    function getLabelData(yearData, metric) {
+      const monthMap = {};
+      yearData.forEach(d => {
+        const idx = d.month_num - 1;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        monthMap[months[idx]] = metric === 'usage' ? d.usage_kwh : d.cost;
+      });
+      return [1,2,3,4,5,6,7,8,9,10,11,12].map(m => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return monthMap[months[m-1]] || null;
+      });
+    }
+
+    function updateSummary(data, metric) {
+      const grouped = {};
+      data.forEach(d => {
+        if (!grouped[d.year]) grouped[d.year] = [];
+        grouped[d.year].push(d);
+      });
+
+      let summaryText = '';
+      const years = Object.keys(grouped).sort();
+
+      if (years.length >= 2) {
+        const preYears = years.filter(y => grouped[y][0].period === 'pre');
+        const postYears = years.filter(y => grouped[y][0].period === 'post');
+
+        if (preYears.length > 0 && postYears.length > 0) {
+          const preMean = preYears.reduce((sum, y) => {
+            const val = metric === 'usage'
+              ? grouped[y].reduce((s, d) => s + d.usage_kwh, 0) / grouped[y].length
+              : grouped[y].reduce((s, d) => s + d.cost, 0) / grouped[y].length;
+            return sum + val;
+          }, 0) / preYears.length;
+
+          const postMean = postYears.reduce((sum, y) => {
+            const val = metric === 'usage'
+              ? grouped[y].reduce((s, d) => s + d.usage_kwh, 0) / grouped[y].length
+              : grouped[y].reduce((s, d) => s + d.cost, 0) / grouped[y].length;
+            return sum + val;
+          }, 0) / postYears.length;
+
+          const pctChange = ((postMean - preMean) / preMean * 100).toFixed(1);
+          const label = metric === 'usage' ? 'Usage' : 'Cost';
+          summaryText = `${label} changed ${pctChange}% after solar installation (${preMean.toFixed(1)} → ${postMean.toFixed(1)})`;
+        }
+      }
+
+      document.getElementById('summary').textContent = summaryText;
+    }
+
+    // Load on page load
+    document.addEventListener('DOMContentLoaded', loadData);
+  </script>
+</body>
+</html>

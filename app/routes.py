@@ -3,7 +3,7 @@
 #
 # Note: This file is now a Flask Blueprint to be registered in app.py.
 # ========== Flask Setup ==========
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 
 routes = Blueprint('routes', __name__)
 import sqlite3
@@ -362,13 +362,17 @@ def solar_settings():
     if request.method == 'POST':
         api_key = request.form.get('api_key', '')
         site_id = request.form.get('site_id', '')
+        install_date = request.form.get('install_date', '')
         set_setting('solaredge_api_key', api_key)
         set_setting('solaredge_site_id', site_id)
+        if install_date:
+            set_setting('solar_install_date', install_date)
         return jsonify({'status': 'Saved'})
     else:
         return jsonify({
             'api_key': get_setting('solaredge_api_key') or '',
-            'site_id': get_setting('solaredge_site_id') or ''
+            'site_id': get_setting('solaredge_site_id') or '',
+            'install_date': get_setting('solar_install_date') or ''
         })
 
 import requests
@@ -777,13 +781,17 @@ def roi_summary():
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
 
-    # Get solar installation date (earliest generation record)
-    cur.execute("SELECT MIN(DATE(timestamp)) FROM generation")
-    solar_start = cur.fetchone()[0]
+    # Get solar installation date from settings (user-configured)
+    solar_start = get_setting('solar_install_date')
+
+    if not solar_start:
+        # Fallback to earliest generation record if not set
+        cur.execute("SELECT MIN(DATE(timestamp)) FROM generation")
+        solar_start = cur.fetchone()[0]
 
     if not solar_start:
         conn.close()
-        return jsonify({"error": "No solar data available"}), 400
+        return jsonify({"error": "Please set your solar installation date in admin settings"}), 400
 
     # Get billing data before and after solar
     cur.execute("""
@@ -843,8 +851,10 @@ def roi_monthly_comparison():
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
 
-    cur.execute("SELECT MIN(DATE(timestamp)) FROM generation")
-    solar_start = cur.fetchone()[0]
+    solar_start = get_setting('solar_install_date')
+    if not solar_start:
+        cur.execute("SELECT MIN(DATE(timestamp)) FROM generation")
+        solar_start = cur.fetchone()[0]
 
     if not solar_start:
         conn.close()
@@ -869,3 +879,167 @@ def roi_monthly_comparison():
         "cost": row[2],
         "period": row[3]
     } for row in rows])
+
+
+@routes.route('/roi/year-over-year')
+def year_over_year():
+    """Get year-over-year comparison data grouped by month"""
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    solar_start = get_setting('solar_install_date')
+    if not solar_start:
+        cur.execute("SELECT MIN(DATE(timestamp)) FROM generation")
+        solar_start = cur.fetchone()[0]
+
+    cur.execute("""
+        SELECT
+            strftime('%m', bill_date) as month_num,
+            strftime('%Y', bill_date) as year,
+            usage_kwh,
+            electrical_charges,
+            (CASE WHEN bill_date < ? THEN 'pre' ELSE 'post' END) as period
+        FROM billing_history
+        ORDER BY year, month_num
+    """, (solar_start,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    months = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December']
+
+    return jsonify([{
+        "month": months[int(row['month_num'])],
+        "month_num": int(row['month_num']),
+        "year": int(row['year']),
+        "usage_kwh": row['usage_kwh'],
+        "cost": row['electrical_charges'],
+        "period": row['period']
+    } for row in rows])
+
+
+@routes.route('/roi/annual-summary')
+def annual_summary():
+    """Get annual totals for all years"""
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    solar_start = get_setting('solar_install_date')
+    if not solar_start:
+        cur.execute("SELECT MIN(DATE(timestamp)) FROM generation")
+        solar_start = cur.fetchone()[0]
+
+    cur.execute("""
+        SELECT
+            strftime('%Y', bill_date) as year,
+            SUM(usage_kwh) as total_usage,
+            SUM(electrical_charges) as total_cost,
+            (CASE WHEN bill_date < ? THEN 'pre' ELSE 'post' END) as period
+        FROM billing_history
+        GROUP BY year, period
+        ORDER BY year
+    """, (solar_start,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    result = []
+    for row in rows:
+        result.append({
+            "year": int(row['year']),
+            "total_usage": row['total_usage'],
+            "total_cost": row['total_cost'],
+            "period": row['period']
+        })
+
+    # Calculate cumulative savings
+    pre_avg_cost = sum(r['total_cost'] for r in result if r['period'] == 'pre') / len([r for r in result if r['period'] == 'pre']) if any(r['period'] == 'pre' for r in result) else 0
+
+    cumulative = 0
+    for r in result:
+        if r['period'] == 'post':
+            avoided = pre_avg_cost - r['total_cost']
+            cumulative += avoided
+            r['avoided_cost'] = avoided
+            r['cumulative_savings'] = cumulative
+        else:
+            r['avoided_cost'] = 0
+            r['cumulative_savings'] = 0
+
+    return jsonify(result)
+
+
+@routes.route('/roi/monthly-detail')
+def monthly_detail():
+    """Get detailed monthly data with savings calculations"""
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    solar_start = get_setting('solar_install_date')
+    if not solar_start:
+        cur.execute("SELECT MIN(DATE(timestamp)) FROM generation")
+        solar_start = cur.fetchone()[0]
+
+    # Get pre-solar average cost per kWh
+    cur.execute("""
+        SELECT AVG(electrical_charges / usage_kwh) as avg_rate
+        FROM billing_history
+        WHERE bill_date < ?
+    """, (solar_start,))
+
+    avg_rate = cur.fetchone()['avg_rate'] or 0.17
+
+    cur.execute("""
+        SELECT
+            bill_date,
+            strftime('%m', bill_date) as month_num,
+            strftime('%Y', bill_date) as year,
+            usage_kwh,
+            electrical_charges,
+            (CASE WHEN bill_date < ? THEN 'pre' ELSE 'post' END) as period
+        FROM billing_history
+        ORDER BY bill_date DESC
+    """, (solar_start,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    months = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December']
+
+    result = []
+    for row in rows:
+        month_num = int(row['month_num'])
+        avoided = 0
+        if row['period'] == 'post':
+            # Estimate avoided cost based on pre-solar average rate
+            avoided = row['usage_kwh'] * avg_rate - row['electrical_charges']
+
+        result.append({
+            "bill_date": row['bill_date'],
+            "month": months[month_num],
+            "month_num": month_num,
+            "year": int(row['year']),
+            "usage_kwh": row['usage_kwh'],
+            "cost": row['electrical_charges'],
+            "avoided_cost": avoided,
+            "period": row['period']
+        })
+
+    return jsonify(result)
+
+
+@routes.route('/yoy-analysis')
+def yoy_analysis():
+    """Year-over-year comparison view"""
+    return render_template('yoy-analysis.html')
+
+
+@routes.route('/roi-dashboard')
+def roi_dashboard():
+    """ROI dashboard with annual, cumulative, and monthly views"""
+    return render_template('roi-dashboard.html')
