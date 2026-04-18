@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ROI Dashboard - SolarScope</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.1.0/dist/chartjs-plugin-zoom.umd.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-50 min-h-screen flex flex-col">
@@ -200,7 +201,24 @@
         },
         options: {
           responsive: true,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            zoom: {
+              zoom: {
+                wheel: { enabled: true, speed: 0.1 },
+                pinch: { enabled: true },
+                mode: 'xy'
+              },
+              pan: {
+                enabled: true,
+                mode: 'xy'
+              },
+              limits: {
+                x: { min: 'original', max: 'original' },
+                y: { min: 'original', max: 'original' }
+              }
+            }
+          },
           scales: { y: { beginAtZero: true } }
         }
       });
@@ -220,7 +238,24 @@
         },
         options: {
           responsive: true,
-          plugins: { legend: { display: false } },
+          plugins: {
+            legend: { display: false },
+            zoom: {
+              zoom: {
+                wheel: { enabled: true, speed: 0.1 },
+                pinch: { enabled: true },
+                mode: 'xy'
+              },
+              pan: {
+                enabled: true,
+                mode: 'xy'
+              },
+              limits: {
+                x: { min: 'original', max: 'original' },
+                y: { min: 'original', max: 'original' }
+              }
+            }
+          },
           scales: { y: { beginAtZero: true } }
         }
       });
@@ -268,7 +303,23 @@
         },
         options: {
           responsive: true,
-          plugins: { legend: { display: true } },
+          plugins: {
+            legend: { display: true },
+            zoom: {
+              zoom: {
+                wheel: { enabled: true, speed: 0.1 },
+                pinch: { enabled: true },
+                mode: 'y'
+              },
+              pan: {
+                enabled: true,
+                mode: 'y'
+              },
+              limits: {
+                y: { min: 'original', max: 'original' }
+              }
+            }
+          },
           scales: { y: { beginAtZero: true } }
         }
       });
