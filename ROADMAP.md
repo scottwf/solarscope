@@ -16,7 +16,7 @@
 - **Weather location validation and user feedback (2025-06)**
 - **Automated SolarEdge background sync (2025-06)**
 ### 🔜 Next Steps
-- [ ] Add chartjs-plugin-zoom for mobile pinch/zoom
+- [x] Add chartjs-plugin-zoom for mobile pinch/zoom
 - [ ] Sticky summary card for daily totals (mobile UX)
 - [x] Button group filters ("Today", "This Week", etc.)
 - [ ] Live updating (HTMX or Flask-Sock)
