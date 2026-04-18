@@ -21,7 +21,7 @@
     <!-- Responsive Dashboard Layout -->
     <div class="flex flex-col md:flex-row gap-6">
       <!-- Desktop Sidebar for Cards -->
-      <aside class="hidden md:flex flex-col gap-4 w-64 shrink-0">
+      <aside class="hidden md:flex md:flex-col md:gap-4 md:w-64 md:shrink-0 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto">
         <div id="summaryCards" class="flex flex-col gap-4"></div>
       </aside>
       <!-- Main Content -->
@@ -45,7 +45,7 @@
           </div>
         </div>
         <!-- Mobile Cards Below Chart -->
-        <div id="summaryCardsMobile" class="grid grid-cols-1 xs:grid-cols-2 gap-3 mt-4 md:hidden"></div>
+        <div id="summaryCardsMobile" class="grid grid-cols-1 xs:grid-cols-2 gap-3 mt-4 md:hidden sticky top-16 z-10"></div>
 
         <!-- ROI Summary Section -->
         <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded shadow p-4 mt-6 border border-green-200">
