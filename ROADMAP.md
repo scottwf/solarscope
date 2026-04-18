@@ -17,7 +17,7 @@
 - **Automated SolarEdge background sync (2025-06)**
 ### 🔜 Next Steps
 - [x] Add chartjs-plugin-zoom for mobile pinch/zoom
-- [ ] Sticky summary card for daily totals (mobile UX)
+- [x] Sticky summary card for daily totals (mobile UX)
 - [x] Button group filters ("Today", "This Week", etc.)
 - [ ] Live updating (HTMX or Flask-Sock)
 - [ ] Enhanced error handling and user feedback (ongoing)
