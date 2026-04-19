@@ -256,11 +256,20 @@
       let solar = [];
       if (mode === 'day') {
         // Group by 15-min interval
-        labels = usageData.map(row => row.timestamp.slice(11, 16));
-        usage = usageData.map(row => row.power);
-        // Solar: match by timestamp
-        const solarMap = Object.fromEntries(solarData.map(row => [row.timestamp, row.energy]));
-        solar = usageData.map(row => solarMap[row.timestamp] || 0);
+        // Use solarData as fallback if usageData is empty
+        const sourceData = usageData.length > 0 ? usageData : solarData;
+        labels = sourceData.map(row => row.timestamp.slice(11, 16));
+
+        if (usageData.length > 0) {
+          // Normal case: usage data exists
+          usage = usageData.map(row => row.power);
+          const solarMap = Object.fromEntries(solarData.map(row => [row.timestamp, row.energy]));
+          solar = usageData.map(row => solarMap[row.timestamp] || 0);
+        } else {
+          // Fallback: usage data missing, show solar only
+          usage = solarData.map(() => 0);
+          solar = solarData.map(row => row.energy);
+        }
       } else {
         // Group by date, sum
         const usageByDay = {};
@@ -273,8 +282,9 @@
           const day = row.timestamp.slice(0, 10);
           solarByDay[day] = (solarByDay[day] || 0) + row.energy;
         });
-        labels = Object.keys(usageByDay);
-        usage = labels.map(day => usageByDay[day]);
+        // Use solar dates as fallback if usage is empty
+        labels = Object.keys(usageByDay).length > 0 ? Object.keys(usageByDay) : Object.keys(solarByDay);
+        usage = labels.map(day => usageByDay[day] || 0);
         solar = labels.map(day => solarByDay[day] || 0);
       }
       return { labels, usage, solar };
