@@ -20,55 +20,85 @@
     </div>
     <!-- Responsive Dashboard Layout -->
     <div class="flex flex-col md:flex-row gap-6">
-      <!-- Desktop Sidebar for Cards -->
+      <!-- Desktop Sidebar for Cards and ROI -->
       <aside class="hidden md:flex md:flex-col md:gap-4 md:w-64 md:shrink-0 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto">
         <div id="summaryCards" class="flex flex-col gap-4"></div>
+        <!-- ROI Summary Section (Desktop Sidebar) -->
+        <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded shadow p-3 border border-green-200">
+          <h2 class="text-sm font-bold text-gray-800 mb-3">☀️ Solar ROI</h2>
+          <div id="roiSummary" class="grid grid-cols-1 gap-3">
+            <div class="bg-white rounded p-2 shadow-sm">
+              <div class="text-xs text-gray-600">Total Savings</div>
+              <div id="roiTotalSavings" class="text-base font-bold text-green-600">--</div>
+            </div>
+            <div class="bg-white rounded p-2 shadow-sm">
+              <div class="text-xs text-gray-600">Monthly Average</div>
+              <div id="roiMonthlySavings" class="text-base font-bold text-green-600">--</div>
+            </div>
+            <div class="bg-white rounded p-2 shadow-sm">
+              <div class="text-xs text-gray-600">Net Metering Credit</div>
+              <div id="roiNetMeteringCredit" class="text-sm font-bold text-blue-600">--</div>
+            </div>
+            <div class="bg-white rounded p-2 shadow-sm">
+              <div class="text-xs text-gray-600">Total Generation</div>
+              <div id="roiGeneration" class="text-sm font-bold text-orange-600">--</div>
+            </div>
+          </div>
+          <div id="roiMessage" class="text-xs text-gray-600 mt-2 italic"></div>
+        </div>
       </aside>
       <!-- Main Content -->
       <main class="flex-1 flex flex-col gap-4">
-        <!-- Chart and Controls at Top -->
-        <div class="bg-white rounded shadow p-4 order-1">
+        <!-- Navigation Controls at Top -->
+        <div class="flex flex-col md:flex-row items-center justify-between w-full gap-3 bg-white rounded shadow p-4">
+          <div class="flex items-center justify-center gap-2">
+            <button id="prevBtn" class="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">&#8592;</button>
+            <input type="date" id="datePicker" class="border rounded px-2 py-1 text-center" />
+            <button id="nextBtn" class="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">&#8594;</button>
+          </div>
+          <div class="flex items-center justify-center gap-4">
+            <div class="inline-flex rounded border bg-gray-200" id="viewToggle">
+              <button id="dayToggle" class="px-2 py-1 rounded-l bg-blue-500 text-white text-sm">Day</button>
+              <button id="weekToggle" class="px-2 py-1 rounded-r text-gray-700 text-sm">Week</button>
+            </div>
+            <div class="flex gap-1" id="rangeButtons">
+              <button id="rangeToday" class="px-2 py-1 rounded bg-gray-100 text-sm">Today</button>
+              <button id="rangeWeek" class="px-2 py-1 rounded bg-gray-100 text-sm">This Week</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="bg-white rounded shadow p-4">
           <canvas id="mainChart" class="w-full h-48"></canvas>
           <div id="summary" class="text-xs text-center text-gray-600 mt-2"></div>
         </div>
-        <div class="flex items-center justify-center w-full md:w-auto gap-2 order-2">
-          <button id="prevBtn" class="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">&#8592;</button>
-          <input type="date" id="datePicker" class="border rounded px-2 py-1 text-center" />
-          <button id="nextBtn" class="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">&#8594;</button>
-          <div class="ml-4 inline-flex rounded border bg-gray-200" id="viewToggle">
-            <button id="dayToggle" class="px-2 py-1 rounded-l bg-blue-500 text-white">Day</button>
-            <button id="weekToggle" class="px-2 py-1 rounded-r text-gray-700">Week</button>
-          </div>
-          <div class="ml-4 flex gap-1" id="rangeButtons">
-            <button id="rangeToday" class="px-2 py-1 rounded bg-gray-100">Today</button>
-            <button id="rangeWeek" class="px-2 py-1 rounded bg-gray-100">This Week</button>
-          </div>
-        </div>
-        <!-- Mobile Cards Below Chart -->
-        <div id="summaryCardsMobile" class="grid grid-cols-1 xs:grid-cols-2 gap-3 mt-4 md:hidden sticky top-16 z-10"></div>
 
-        <!-- ROI Summary Section -->
-        <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded shadow p-4 mt-6 border border-green-200">
-          <h2 class="text-lg font-bold text-gray-800 mb-4">☀️ Solar ROI Summary</h2>
-          <div id="roiSummary" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-white rounded p-3 shadow-sm">
+        <!-- Mobile Cards Below Chart -->
+        <div id="summaryCardsMobile" class="grid grid-cols-1 xs:grid-cols-2 gap-3 md:hidden sticky top-16 z-10"></div>
+
+        <!-- Mobile ROI Summary (hidden on desktop) -->
+        <div class="md:hidden bg-gradient-to-r from-green-50 to-blue-50 rounded shadow p-3 border border-green-200">
+          <h2 class="text-base font-bold text-gray-800 mb-3">☀️ Solar ROI Summary</h2>
+          <div id="roiSummaryMobile" class="grid grid-cols-2 gap-3">
+            <div class="bg-white rounded p-2 shadow-sm">
               <div class="text-xs text-gray-600">Total Savings</div>
-              <div id="roiTotalSavings" class="text-2xl font-bold text-green-600">--</div>
+              <div id="roiTotalSavingsMobile" class="text-lg font-bold text-green-600">--</div>
             </div>
-            <div class="bg-white rounded p-3 shadow-sm">
+            <div class="bg-white rounded p-2 shadow-sm">
               <div class="text-xs text-gray-600">Monthly Average</div>
-              <div id="roiMonthlySavings" class="text-2xl font-bold text-green-600">--</div>
+              <div id="roiMonthlySavingsMobile" class="text-lg font-bold text-green-600">--</div>
             </div>
-            <div class="bg-white rounded p-3 shadow-sm">
+            <div class="bg-white rounded p-2 shadow-sm">
               <div class="text-xs text-gray-600">Net Metering Credit</div>
-              <div id="roiNetMeteringCredit" class="text-xl font-bold text-blue-600">--</div>
+              <div id="roiNetMeteringCreditMobile" class="text-base font-bold text-blue-600">--</div>
             </div>
-            <div class="bg-white rounded p-3 shadow-sm">
+            <div class="bg-white rounded p-2 shadow-sm">
               <div class="text-xs text-gray-600">Total Generation</div>
-              <div id="roiGeneration" class="text-xl font-bold text-orange-600">--</div>
+              <div id="roiGenerationMobile" class="text-base font-bold text-orange-600">--</div>
             </div>
           </div>
-          <div id="roiMessage" class="text-xs text-gray-600 mt-3 italic"></div>
+          <div id="roiMessageMobile" class="text-xs text-gray-600 mt-2 italic"></div>
         </div>
       </main>
     </div>
@@ -324,17 +354,33 @@
         const res = await fetch('/roi/summary', { credentials: 'include' });
         if (!res.ok) {
           document.getElementById('roiMessage').textContent = 'Import billing history to see ROI calculations';
+          if (document.getElementById('roiMessageMobile')) {
+            document.getElementById('roiMessageMobile').textContent = 'Import billing history to see ROI calculations';
+          }
           return;
         }
         const data = await res.json();
 
+        // Update desktop ROI
         document.getElementById('roiTotalSavings').textContent = '$' + data.total_savings.toFixed(2);
         document.getElementById('roiMonthlySavings').textContent = '$' + data.monthly_savings.toFixed(2);
         document.getElementById('roiNetMeteringCredit').textContent = '$' + data.net_metering_credit.toFixed(2);
         document.getElementById('roiGeneration').textContent = data.total_generation_kwh.toLocaleString() + ' kWh';
         document.getElementById('roiMessage').textContent = `Solar system installed: ${data.solar_start_date}`;
+
+        // Update mobile ROI
+        if (document.getElementById('roiTotalSavingsMobile')) {
+          document.getElementById('roiTotalSavingsMobile').textContent = '$' + data.total_savings.toFixed(2);
+          document.getElementById('roiMonthlySavingsMobile').textContent = '$' + data.monthly_savings.toFixed(2);
+          document.getElementById('roiNetMeteringCreditMobile').textContent = '$' + data.net_metering_credit.toFixed(2);
+          document.getElementById('roiGenerationMobile').textContent = data.total_generation_kwh.toLocaleString() + ' kWh';
+          document.getElementById('roiMessageMobile').textContent = `Solar system installed: ${data.solar_start_date}`;
+        }
       } catch (e) {
         document.getElementById('roiMessage').textContent = 'ROI data not available yet';
+        if (document.getElementById('roiMessageMobile')) {
+          document.getElementById('roiMessageMobile').textContent = 'ROI data not available yet';
+        }
       }
     }
 

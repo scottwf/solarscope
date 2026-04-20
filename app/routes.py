@@ -555,7 +555,9 @@ def summary_totals(period):
     elif period == 'month':
         period_start = today.replace(day=1)
     elif period == 'week':
-        period_start = today - timedelta(days=today.weekday())
+        # Use last 7 days instead of "week starting Monday"
+        # This ensures we show recent data even when usage data lags behind
+        period_start = today - timedelta(days=6)
     else:
         conn.close()
         return jsonify({'error': 'Invalid period'}), 400
