@@ -1045,3 +1045,47 @@ def yoy_analysis():
 def roi_dashboard():
     """ROI dashboard with annual, cumulative, and monthly views"""
     return render_template('roi-dashboard.html')
+
+
+@routes.route('/heatmap')
+def heatmap():
+    """Energy heatmap calendar view"""
+    return render_template('heatmap.html')
+
+
+@routes.route('/heatmap/data')
+def heatmap_data():
+    """Return daily usage and generation data for heatmap"""
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    # Get all daily totals for usage and generation
+    # SQLite doesn't support FULL OUTER JOIN, so use UNION with LEFT JOINs
+    cur.execute("""
+        SELECT date, SUM(usage) as usage, SUM(generation) as generation
+        FROM (
+            SELECT DATE(timestamp) as date, SUM(power) as usage, 0 as generation
+            FROM usage
+            GROUP BY DATE(timestamp)
+            UNION ALL
+            SELECT DATE(timestamp) as date, 0 as usage, SUM(energy) as generation
+            FROM generation
+            GROUP BY DATE(timestamp)
+        )
+        GROUP BY date
+        ORDER BY date DESC
+        LIMIT 365
+    """)
+    rows = cur.fetchall()
+    conn.close()
+
+    result = []
+    for row in rows:
+        result.append({
+            'date': row['date'],
+            'usage': float(row['usage']) if row['usage'] else 0.0,
+            'generation': float(row['generation']) if row['generation'] else 0.0
+        })
+
+    return jsonify(sorted(result, key=lambda x: x['date']))
