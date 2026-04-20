@@ -217,7 +217,10 @@
 
       // --- UI State ---
       let mode = 'day'; // 'day' or 'week'
-      let selectedDate = formatDate(new Date());
+      // Check for date parameter in URL (e.g., from heatmap)
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramDate = urlParams.get('date');
+      let selectedDate = paramDate || formatDate(new Date());
 
       const dayToggle = document.getElementById('dayToggle');
       const weekToggle = document.getElementById('weekToggle');
@@ -386,6 +389,8 @@
     }
 
     // Initial load
+    // Set date picker to current selected date
+    document.getElementById('datePicker').value = selectedDate;
     updateChart();
     updateROI();
   }); // Close DOMContentLoaded handler

@@ -100,7 +100,8 @@
           const surplus = day.generation - day.usage;
           const tooltip = `${day.date}: ${day.usage.toFixed(1)} kWh usage, ${day.generation.toFixed(1)} kWh generation (${surplus > 0 ? '+' : ''}${surplus.toFixed(1)} kWh)`;
 
-          html += `<div
+          html += `<a
+            href="/dashboard?date=${day.date}"
             style="
               width: 30px;
               height: 30px;
@@ -112,13 +113,14 @@
               font-size: 11px;
               color: white;
               font-weight: bold;
+              text-decoration: none;
               cursor: pointer;
               transition: transform 0.1s;
             "
             title="${tooltip}"
             onmouseover="this.style.transform='scale(1.2)'"
             onmouseout="this.style.transform='scale(1)'"
-          >${dayNum}</div>`;
+          >${dayNum}</a>`;
         });
 
         html += '</div></div>';
