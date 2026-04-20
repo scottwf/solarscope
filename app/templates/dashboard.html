@@ -255,21 +255,21 @@
       let usage = [];
       let solar = [];
       if (mode === 'day') {
-        // Group by 15-min interval
-        // Use solarData as fallback if usageData is empty
-        const sourceData = usageData.length > 0 ? usageData : solarData;
-        labels = sourceData.map(row => row.timestamp.slice(11, 16));
-
-        if (usageData.length > 0) {
-          // Normal case: usage data exists
-          usage = usageData.map(row => row.power);
-          const solarMap = Object.fromEntries(solarData.map(row => [row.timestamp, row.energy]));
-          solar = usageData.map(row => solarMap[row.timestamp] || 0);
-        } else {
-          // Fallback: usage data missing, show solar only
-          usage = solarData.map(() => 0);
-          solar = solarData.map(row => row.energy);
+        // Generate full daylight hours: 06:00 to 22:00 in 15-min intervals
+        labels = [];
+        for (let hour = 6; hour <= 22; hour++) {
+          for (let min = 0; min < 60; min += 15) {
+            labels.push(String(hour).padStart(2, '0') + ':' + String(min).padStart(2, '0'));
+          }
         }
+
+        // Create time-based maps from actual data (HH:MM format as key)
+        const usageMap = Object.fromEntries(usageData.map(row => [row.timestamp.slice(11, 16), row.power]));
+        const solarMap = Object.fromEntries(solarData.map(row => [row.timestamp.slice(11, 16), row.energy]));
+
+        // Fill arrays with actual data where available, 0 where not
+        usage = labels.map(label => usageMap[label] || 0);
+        solar = labels.map(label => solarMap[label] || 0);
       } else {
         // Group by date, sum
         const usageByDay = {};

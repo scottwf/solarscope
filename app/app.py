@@ -35,10 +35,35 @@ app.register_blueprint(routes)
 
 # Background scheduler for automatic SolarEdge sync
 def solar_sync_job():
-    start = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-    end = datetime.now().strftime('%Y-%m-%d')
-    if import_generation_for_range(start, end):
-        set_setting('solaredge_last_update', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    try:
+        # Find the last record we have in the database
+        conn = sqlite3.connect(DB_FILE)
+        cur = conn.cursor()
+        cur.execute("SELECT MAX(timestamp) FROM generation")
+        last_record = cur.fetchone()[0]
+        conn.close()
+
+        # Determine the start date for sync
+        if last_record:
+            # Data exists: backfill from day after last record to today
+            last_date = datetime.strptime(last_record[:10], '%Y-%m-%d').date()
+            start_date = (last_date + timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            # No data: use solar installation date or default to 30 days ago
+            install_date = get_setting('solar_install_date')
+            if install_date:
+                start_date = install_date
+            else:
+                start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+
+        end_date = datetime.now().strftime('%Y-%m-%d')
+
+        # Only sync if there's a date range to fill
+        if start_date <= end_date:
+            if import_generation_for_range(start_date, end_date):
+                set_setting('solaredge_last_update', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    except Exception as e:
+        log_event(f"Solar sync job error: {e}")
 
 scheduler = BackgroundScheduler(daemon=True)
 scheduler.add_job(solar_sync_job, 'interval', minutes=15)
