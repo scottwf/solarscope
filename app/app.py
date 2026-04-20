@@ -45,9 +45,9 @@ def solar_sync_job():
 
         # Determine the start date for sync
         if last_record:
-            # Data exists: backfill from day after last record to today
+            # Data exists: backfill from day of last record to today
             last_date = datetime.strptime(last_record[:10], '%Y-%m-%d').date()
-            start_date = (last_date + timedelta(days=1)).strftime('%Y-%m-%d')
+            start_date = last_date.strftime('%Y-%m-%d')
         else:
             # No data: use solar installation date or default to 30 days ago
             install_date = get_setting('solar_install_date')

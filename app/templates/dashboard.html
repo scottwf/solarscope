@@ -255,9 +255,9 @@
       let usage = [];
       let solar = [];
       if (mode === 'day') {
-        // Generate full daylight hours: 06:00 to 22:00 in 15-min intervals
+        // Generate full 24-hour day: 00:00 to 23:45 in 15-min intervals (96 labels)
         labels = [];
-        for (let hour = 6; hour <= 22; hour++) {
+        for (let hour = 0; hour < 24; hour++) {
           for (let min = 0; min < 60; min += 15) {
             labels.push(String(hour).padStart(2, '0') + ':' + String(min).padStart(2, '0'));
           }
