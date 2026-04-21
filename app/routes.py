@@ -1060,21 +1060,20 @@ def heatmap_data():
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    # Get all daily totals for usage and generation
-    # SQLite doesn't support FULL OUTER JOIN, so use UNION with LEFT JOINs
+    # Only return dates that have BOTH usage and generation data
     cur.execute("""
-        SELECT date, SUM(usage) as usage, SUM(generation) as generation
+        SELECT u.date, u.usage, g.generation
         FROM (
-            SELECT DATE(timestamp) as date, SUM(power) as usage, 0 as generation
+            SELECT DATE(timestamp) as date, SUM(power) as usage
             FROM usage
             GROUP BY DATE(timestamp)
-            UNION ALL
-            SELECT DATE(timestamp) as date, 0 as usage, SUM(energy) as generation
+        ) u
+        INNER JOIN (
+            SELECT DATE(timestamp) as date, SUM(energy) as generation
             FROM generation
             GROUP BY DATE(timestamp)
-        )
-        GROUP BY date
-        ORDER BY date DESC
+        ) g ON u.date = g.date
+        ORDER BY u.date DESC
         LIMIT 365
     """)
     rows = cur.fetchall()
