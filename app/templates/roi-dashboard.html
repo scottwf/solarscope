@@ -7,45 +7,67 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.1.0/dist/chartjs-plugin-zoom.umd.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { background: #0a0a0a; color: #f0ebe7; font-family: 'DM Sans', sans-serif; }
+    .card { background: #141414; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; }
+    .card-inner { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; }
+    .muted { color: #9b918c; }
+    .stat-value { font-family: 'DM Mono', monospace; }
+    a.nav-link { color: #0ea5e9; font-size: 0.875rem; text-decoration: none; }
+    a.nav-link:hover { color: #38bdf8; }
+    .tab-btn { background: transparent; border-bottom: 2px solid transparent; color: #9b918c; cursor: pointer; transition: all 0.15s; }
+    .tab-btn:hover { color: #f0ebe7; }
+    .tab-btn.active { color: #0ea5e9; border-bottom-color: #0ea5e9; }
+    table { border-collapse: collapse; }
+    th { background: #1a1a1a; color: #9b918c; font-family: 'DM Sans', sans-serif; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    th, td { border: 1px solid rgba(255,255,255,0.06); padding: 8px 16px; }
+    td { font-family: 'DM Mono', monospace; font-size: 0.8rem; color: #f0ebe7; }
+    tr.post-solar { background: rgba(16,185,129,0.06); }
+    .period-badge-post { background: rgba(16,185,129,0.2); color: #10b981; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+    .period-badge-pre { background: rgba(255,255,255,0.06); color: #9b918c; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
+    select { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.08); color: #f0ebe7; border-radius: 8px; font-family: 'DM Sans', sans-serif; }
+  </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col">
   <div class="container mx-auto p-4">
     <div class="flex flex-row justify-between items-center mb-6">
       <h1 class="text-3xl font-bold">ROI & Savings Dashboard</h1>
-      <a href="/dashboard" class="text-sm text-blue-600 hover:underline">Back to Dashboard</a>
+      <a href="/dashboard" class="nav-link">Back to Dashboard</a>
     </div>
 
     <!-- Tab Navigation -->
-    <div class="bg-white rounded shadow p-2 mb-6 flex gap-2 border-b">
-      <button id="tabAnnual" class="px-4 py-2 font-semibold text-blue-600 border-b-2 border-blue-600 cursor-pointer">Annual Summary</button>
-      <button id="tabCumulative" class="px-4 py-2 font-semibold text-gray-600 border-b-2 border-transparent cursor-pointer hover:text-blue-600">Cumulative Savings</button>
-      <button id="tabMonthly" class="px-4 py-2 font-semibold text-gray-600 border-b-2 border-transparent cursor-pointer hover:text-blue-600">Monthly Details</button>
+    <div class="card p-2 mb-6 flex gap-2" style="border-radius: 14px 14px 0 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+      <button id="tabAnnual" class="tab-btn active px-4 py-2 font-semibold">Annual Summary</button>
+      <button id="tabCumulative" class="tab-btn px-4 py-2 font-semibold">Cumulative Savings</button>
+      <button id="tabMonthly" class="tab-btn px-4 py-2 font-semibold">Monthly Details</button>
     </div>
 
     <!-- Annual Summary Tab -->
     <div id="annualTab" class="space-y-4">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-white rounded shadow p-4">
+        <div class="card p-4">
           <h2 class="text-lg font-bold mb-4">Annual Energy Usage</h2>
           <canvas id="annualUsageChart" class="w-full h-80"></canvas>
         </div>
-        <div class="bg-white rounded shadow p-4">
+        <div class="card p-4">
           <h2 class="text-lg font-bold mb-4">Annual Electrical Costs</h2>
           <canvas id="annualCostChart" class="w-full h-80"></canvas>
         </div>
       </div>
-      <div class="bg-white rounded shadow p-4">
+      <div class="card p-4">
         <h2 class="text-lg font-bold mb-4">Annual Summary Table</h2>
         <div class="overflow-x-auto">
-          <table class="w-full text-sm border-collapse">
-            <thead class="bg-gray-100">
+          <table class="w-full text-sm">
+            <thead>
               <tr>
-                <th class="border px-4 py-2 text-left">Year</th>
-                <th class="border px-4 py-2 text-right">Usage (kWh)</th>
-                <th class="border px-4 py-2 text-right">Cost ($)</th>
-                <th class="border px-4 py-2 text-right">Avoided Cost ($)</th>
-                <th class="border px-4 py-2 text-right">Cumulative Savings ($)</th>
-                <th class="border px-4 py-2 text-center">Period</th>
+                <th class="text-left">Year</th>
+                <th class="text-right">Usage (kWh)</th>
+                <th class="text-right">Cost ($)</th>
+                <th class="text-right">Avoided Cost ($)</th>
+                <th class="text-right">Cumulative Savings ($)</th>
+                <th class="text-center">Period</th>
               </tr>
             </thead>
             <tbody id="annualTableBody"></tbody>
@@ -56,24 +78,24 @@
 
     <!-- Cumulative Savings Tab -->
     <div id="cumulativeTab" class="hidden">
-      <div class="bg-white rounded shadow p-4 mb-4">
+      <div class="card p-4 mb-4">
         <h2 class="text-lg font-bold mb-4">Cumulative Savings Over Time</h2>
         <canvas id="cumulativeChart" class="w-full h-96"></canvas>
       </div>
-      <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded shadow p-4 border border-green-200">
-        <h2 class="text-lg font-bold text-gray-800 mb-4">💰 Total Savings Summary</h2>
+      <div class="card p-4">
+        <h2 class="text-lg font-bold mb-4">💰 Total Savings Summary</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-white rounded p-3 shadow-sm">
-            <div class="text-xs text-gray-600">Years with Solar</div>
-            <div id="yearsWithSolar" class="text-2xl font-bold text-blue-600">--</div>
+          <div class="card-inner p-3">
+            <div class="text-xs muted">Years with Solar</div>
+            <div id="yearsWithSolar" class="text-2xl font-bold stat-value" style="color: #0ea5e9;">--</div>
           </div>
-          <div class="bg-white rounded p-3 shadow-sm">
-            <div class="text-xs text-gray-600">Total Avoided Cost</div>
-            <div id="totalAvoided" class="text-2xl font-bold text-green-600">--</div>
+          <div class="card-inner p-3">
+            <div class="text-xs muted">Total Avoided Cost</div>
+            <div id="totalAvoided" class="text-2xl font-bold stat-value" style="color: #10b981;">--</div>
           </div>
-          <div class="bg-white rounded p-3 shadow-sm">
-            <div class="text-xs text-gray-600">Cost Per Year</div>
-            <div id="costPerYear" class="text-2xl font-bold text-orange-600">--</div>
+          <div class="card-inner p-3">
+            <div class="text-xs muted">Cost Per Year</div>
+            <div id="costPerYear" class="text-2xl font-bold stat-value" style="color: #f59e0b;">--</div>
           </div>
         </div>
       </div>
@@ -81,17 +103,17 @@
 
     <!-- Monthly Details Tab -->
     <div id="monthlyTab" class="hidden">
-      <div class="bg-white rounded shadow p-4 mb-4">
+      <div class="card p-4 mb-4">
         <div class="flex gap-4 mb-4 flex-wrap">
           <div>
-            <label class="block text-sm font-semibold mb-2">Filter by Year:</label>
-            <select id="yearFilter" class="border rounded px-2 py-1">
+            <label class="block text-sm font-semibold mb-2 muted">Filter by Year:</label>
+            <select id="yearFilter" class="px-2 py-1">
               <option value="">All Years</option>
             </select>
           </div>
           <div>
-            <label class="block text-sm font-semibold mb-2">Filter by Period:</label>
-            <select id="periodFilter" class="border rounded px-2 py-1">
+            <label class="block text-sm font-semibold mb-2 muted">Filter by Period:</label>
+            <select id="periodFilter" class="px-2 py-1">
               <option value="">All</option>
               <option value="pre">Pre-Solar</option>
               <option value="post">Post-Solar</option>
@@ -100,15 +122,15 @@
         </div>
 
         <div class="overflow-x-auto">
-          <table class="w-full text-sm border-collapse">
-            <thead class="bg-gray-100">
+          <table class="w-full text-sm">
+            <thead>
               <tr>
-                <th class="border px-4 py-2 text-left">Date</th>
-                <th class="border px-4 py-2 text-left">Month</th>
-                <th class="border px-4 py-2 text-right">Usage (kWh)</th>
-                <th class="border px-4 py-2 text-right">Cost ($)</th>
-                <th class="border px-4 py-2 text-right">Avoided Cost ($)</th>
-                <th class="border px-4 py-2 text-center">Period</th>
+                <th class="text-left">Date</th>
+                <th class="text-left">Month</th>
+                <th class="text-right">Usage (kWh)</th>
+                <th class="text-right">Cost ($)</th>
+                <th class="text-right">Avoided Cost ($)</th>
+                <th class="text-center">Period</th>
               </tr>
             </thead>
             <tbody id="monthlyTableBody"></tbody>
@@ -119,6 +141,38 @@
   </div>
 
   <script>
+    // Shared dark chart defaults
+    const CHART_TOOLTIP = {
+      backgroundColor: '#1a1a1a',
+      borderColor: 'rgba(255,255,255,0.08)',
+      borderWidth: 1,
+      cornerRadius: 8,
+      caretSize: 0,
+      titleColor: '#f0ebe7',
+      bodyColor: '#9b918c',
+      titleFont: { family: "'DM Mono', monospace", size: 12 },
+      bodyFont: { family: "'DM Mono', monospace", size: 11 },
+      padding: 12
+    };
+    const CHART_SCALES = {
+      x: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: { color: '#9b918c', font: { family: "'DM Mono', monospace", size: 10 } }
+      },
+      y: {
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        border: { display: false },
+        beginAtZero: true,
+        ticks: { color: '#9b918c', font: { family: "'DM Mono', monospace", size: 10 } }
+      }
+    };
+    const CHART_ZOOM = {
+      zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, mode: 'xy' },
+      pan: { enabled: true, mode: 'xy' },
+      limits: { x: { min: 'original', max: 'original' }, y: { min: 'original', max: 'original' } }
+    };
+
     let annualData = [];
     let monthlyData = [];
     let charts = {};
@@ -134,7 +188,6 @@
       populateCumulativeTab();
       populateMonthlyTab();
 
-      // Setup tabs
       document.getElementById('tabAnnual').onclick = () => switchTab('annual');
       document.getElementById('tabCumulative').onclick = () => switchTab('cumulative');
       document.getElementById('tabMonthly').onclick = () => switchTab('monthly');
@@ -145,11 +198,8 @@
       document.getElementById('cumulativeTab').classList.toggle('hidden', tab !== 'cumulative');
       document.getElementById('monthlyTab').classList.toggle('hidden', tab !== 'monthly');
 
-      document.querySelectorAll('button[id^="tab"]').forEach(b => {
-        b.classList.remove('text-blue-600', 'border-blue-600');
-        b.classList.add('text-gray-600', 'border-transparent');
-      });
-      document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('text-blue-600', 'border-blue-600');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
 
       if (tab === 'annual') renderAnnualCharts();
       if (tab === 'cumulative') renderCumulativeChart();
@@ -161,14 +211,14 @@
       const tbody = document.getElementById('annualTableBody');
       annualData.forEach(row => {
         const tr = document.createElement('tr');
-        tr.className = row.period === 'post' ? 'bg-green-50' : '';
+        tr.className = row.period === 'post' ? 'post-solar' : '';
         tr.innerHTML = `
-          <td class="border px-4 py-2 font-semibold">${row.year}</td>
-          <td class="border px-4 py-2 text-right">${row.total_usage.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-          <td class="border px-4 py-2 text-right">$${row.total_cost.toFixed(2)}</td>
-          <td class="border px-4 py-2 text-right font-semibold">${row.avoided_cost ? '$' + row.avoided_cost.toFixed(2) : '-'}</td>
-          <td class="border px-4 py-2 text-right font-bold text-green-600">${row.cumulative_savings ? '$' + row.cumulative_savings.toFixed(2) : '-'}</td>
-          <td class="border px-4 py-2 text-center text-xs ${row.period === 'post' ? 'bg-green-200 font-bold' : 'bg-gray-200'}">${row.period}</td>
+          <td class="font-semibold">${row.year}</td>
+          <td class="text-right">${row.total_usage.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+          <td class="text-right">$${row.total_cost.toFixed(2)}</td>
+          <td class="text-right" style="color: #10b981; font-weight: 600;">${row.avoided_cost ? '$' + row.avoided_cost.toFixed(2) : '-'}</td>
+          <td class="text-right font-bold" style="color: #10b981;">${row.cumulative_savings ? '$' + row.cumulative_savings.toFixed(2) : '-'}</td>
+          <td class="text-center"><span class="${row.period === 'post' ? 'period-badge-post' : 'period-badge-pre'}">${row.period}</span></td>
         `;
         tbody.appendChild(tr);
       });
@@ -177,14 +227,12 @@
     function renderAnnualCharts() {
       const ctx1 = document.getElementById('annualUsageChart');
       const ctx2 = document.getElementById('annualCostChart');
-
       if (!ctx1 || !ctx2) return;
 
       const labels = annualData.map(r => r.year);
       const usageData = annualData.map(r => r.total_usage);
       const costData = annualData.map(r => r.total_cost);
-      const colors = annualData.map(r => r.period === 'post' ? 'rgba(16,185,129,0.7)' : 'rgba(59,130,246,0.7)');
-      const borderColors = annualData.map(r => r.period === 'post' ? 'rgba(16,185,129,1)' : 'rgba(59,130,246,1)');
+      const bgColors = annualData.map(r => r.period === 'post' ? 'rgba(16,185,129,0.35)' : 'rgba(14,165,233,0.35)');
 
       if (charts.usage) charts.usage.destroy();
       charts.usage = new Chart(ctx1, {
@@ -194,32 +242,17 @@
           datasets: [{
             label: 'Annual Usage (kWh)',
             data: usageData,
-            backgroundColor: colors,
-            borderColor: borderColors,
-            borderWidth: 2
+            backgroundColor: bgColors,
+            borderColor: 'transparent',
+            borderWidth: 0,
+            borderRadius: 6,
+            borderSkipped: false
           }]
         },
         options: {
           responsive: true,
-          plugins: {
-            legend: { display: false },
-            zoom: {
-              zoom: {
-                wheel: { enabled: true, speed: 0.1 },
-                pinch: { enabled: true },
-                mode: 'xy'
-              },
-              pan: {
-                enabled: true,
-                mode: 'xy'
-              },
-              limits: {
-                x: { min: 'original', max: 'original' },
-                y: { min: 'original', max: 'original' }
-              }
-            }
-          },
-          scales: { y: { beginAtZero: true } }
+          plugins: { legend: { display: false }, tooltip: CHART_TOOLTIP, zoom: CHART_ZOOM },
+          scales: CHART_SCALES
         }
       });
 
@@ -231,32 +264,17 @@
           datasets: [{
             label: 'Annual Cost ($)',
             data: costData,
-            backgroundColor: colors,
-            borderColor: borderColors,
-            borderWidth: 2
+            backgroundColor: bgColors,
+            borderColor: 'transparent',
+            borderWidth: 0,
+            borderRadius: 6,
+            borderSkipped: false
           }]
         },
         options: {
           responsive: true,
-          plugins: {
-            legend: { display: false },
-            zoom: {
-              zoom: {
-                wheel: { enabled: true, speed: 0.1 },
-                pinch: { enabled: true },
-                mode: 'xy'
-              },
-              pan: {
-                enabled: true,
-                mode: 'xy'
-              },
-              limits: {
-                x: { min: 'original', max: 'original' },
-                y: { min: 'original', max: 'original' }
-              }
-            }
-          },
-          scales: { y: { beginAtZero: true } }
+          plugins: { legend: { display: false }, tooltip: CHART_TOOLTIP, zoom: CHART_ZOOM },
+          scales: CHART_SCALES
         }
       });
     }
@@ -280,7 +298,6 @@
 
       const cumulativeData = annualData.map(r => r.cumulative_savings);
       const labels = annualData.map(r => r.year);
-      const colors = annualData.map(r => r.period === 'post' ? 'rgba(34,197,94,0.7)' : 'rgba(200,200,200,0.5)');
 
       if (charts.cumulative) charts.cumulative.destroy();
       charts.cumulative = new Chart(ctx, {
@@ -290,37 +307,38 @@
           datasets: [{
             label: 'Cumulative Savings ($)',
             data: cumulativeData,
-            borderColor: 'rgba(34,197,94,1)',
-            backgroundColor: 'rgba(34,197,94,0.1)',
-            borderWidth: 3,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16,185,129,0.15)',
+            borderWidth: 2,
             fill: true,
             tension: 0.4,
-            pointRadius: 6,
-            pointBackgroundColor: colors,
-            pointBorderColor: colors,
-            pointBorderWidth: 2
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            pointHoverBackgroundColor: '#10b981',
+            pointHoverBorderColor: '#10b981'
           }]
         },
         options: {
           responsive: true,
           plugins: {
-            legend: { display: true },
-            zoom: {
-              zoom: {
-                wheel: { enabled: true, speed: 0.1 },
-                pinch: { enabled: true },
-                mode: 'y'
-              },
-              pan: {
-                enabled: true,
-                mode: 'y'
-              },
-              limits: {
-                y: { min: 'original', max: 'original' }
+            legend: {
+              display: true,
+              labels: {
+                color: '#9b918c',
+                font: { family: "'DM Sans', sans-serif", size: 12 },
+                usePointStyle: true,
+                pointStyle: 'rectRounded',
+                padding: 20
               }
+            },
+            tooltip: CHART_TOOLTIP,
+            zoom: {
+              zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, mode: 'y' },
+              pan: { enabled: true, mode: 'y' },
+              limits: { y: { min: 'original', max: 'original' } }
             }
           },
-          scales: { y: { beginAtZero: true } }
+          scales: CHART_SCALES
         }
       });
     }
@@ -358,14 +376,14 @@
 
       data.forEach(row => {
         const tr = document.createElement('tr');
-        tr.className = row.period === 'post' ? 'bg-green-50' : '';
+        tr.className = row.period === 'post' ? 'post-solar' : '';
         tr.innerHTML = `
-          <td class="border px-4 py-2">${row.bill_date}</td>
-          <td class="border px-4 py-2 font-semibold">${row.month}</td>
-          <td class="border px-4 py-2 text-right">${row.usage_kwh.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
-          <td class="border px-4 py-2 text-right">$${row.cost.toFixed(2)}</td>
-          <td class="border px-4 py-2 text-right font-semibold text-green-600">${row.avoided_cost ? '$' + row.avoided_cost.toFixed(2) : '-'}</td>
-          <td class="border px-4 py-2 text-center text-xs ${row.period === 'post' ? 'bg-green-200 font-bold' : 'bg-gray-200'}">${row.period}</td>
+          <td>${row.bill_date}</td>
+          <td class="font-semibold">${row.month}</td>
+          <td class="text-right">${row.usage_kwh.toLocaleString(undefined, {maximumFractionDigits: 0})}</td>
+          <td class="text-right">$${row.cost.toFixed(2)}</td>
+          <td class="text-right font-semibold" style="color: #10b981;">${row.avoided_cost ? '$' + row.avoided_cost.toFixed(2) : '-'}</td>
+          <td class="text-center"><span class="${row.period === 'post' ? 'period-badge-post' : 'period-badge-pre'}">${row.period}</span></td>
         `;
         tbody.appendChild(tr);
       });

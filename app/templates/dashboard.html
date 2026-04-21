@@ -7,16 +7,33 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.1.0/dist/chartjs-plugin-zoom.umd.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { background: #0a0a0a; color: #f0ebe7; font-family: 'DM Sans', sans-serif; }
+    .card { background: #141414; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; }
+    .card-inner { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; }
+    .stat-value { font-family: 'DM Mono', monospace; }
+    .muted { color: #9b918c; }
+    .nav-btn { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.08); color: #f0ebe7; border-radius: 8px; transition: background 0.15s; }
+    .nav-btn:hover { background: #252525; }
+    .toggle-active { background: #0ea5e9 !important; color: white !important; border-color: #0ea5e9 !important; }
+    .toggle-inactive { background: #1a1a1a; color: #9b918c; border: 1px solid rgba(255,255,255,0.08); }
+    input[type="date"] { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.08); color: #f0ebe7; border-radius: 8px; font-family: 'DM Mono', monospace; }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+    a.nav-link { color: #0ea5e9; font-size: 0.875rem; text-decoration: none; transition: color 0.15s; }
+    a.nav-link:hover { color: #38bdf8; }
+  </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col">
   <div class="container mx-auto p-4">
     <div class="flex flex-row justify-between items-center mb-4">
-      <h1 class="text-2xl font-bold">SolarScope Dashboard</h1>
+      <h1 class="text-2xl font-bold" style="color: #f0ebe7;">SolarScope Dashboard</h1>
       <div class="flex gap-4">
-        <a href="/heatmap" class="text-sm text-blue-600 hover:underline">Heatmap</a>
-        <a href="/yoy-analysis" class="text-sm text-blue-600 hover:underline">Year-Over-Year</a>
-        <a href="/roi-dashboard" class="text-sm text-blue-600 hover:underline">ROI Dashboard</a>
-        <a href="/admin" class="text-sm text-blue-600 hover:underline">Admin Panel</a>
+        <a href="/heatmap" class="nav-link">Heatmap</a>
+        <a href="/yoy-analysis" class="nav-link">Year-Over-Year</a>
+        <a href="/roi-dashboard" class="nav-link">ROI Dashboard</a>
+        <a href="/admin" class="nav-link">Admin Panel</a>
       </div>
     </div>
     <!-- Responsive Dashboard Layout -->
@@ -25,81 +42,81 @@
       <aside class="hidden md:flex md:flex-col md:gap-4 md:w-64 md:shrink-0 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:overflow-y-auto">
         <div id="summaryCards" class="flex flex-col gap-4"></div>
         <!-- ROI Summary Section (Desktop Sidebar) -->
-        <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded shadow p-3 border border-green-200">
-          <h2 class="text-sm font-bold text-gray-800 mb-3">☀️ Solar ROI</h2>
+        <div class="card p-3">
+          <h2 class="text-sm font-bold mb-3" style="color: #f0ebe7;">☀️ Solar ROI</h2>
           <div id="roiSummary" class="grid grid-cols-1 gap-3">
-            <div class="bg-white rounded p-2 shadow-sm">
-              <div class="text-xs text-gray-600">Total Savings</div>
-              <div id="roiTotalSavings" class="text-base font-bold text-green-600">--</div>
+            <div class="card-inner p-2">
+              <div class="text-xs muted">Total Savings</div>
+              <div id="roiTotalSavings" class="text-base font-bold stat-value" style="color: #10b981;">--</div>
             </div>
-            <div class="bg-white rounded p-2 shadow-sm">
-              <div class="text-xs text-gray-600">Monthly Average</div>
-              <div id="roiMonthlySavings" class="text-base font-bold text-green-600">--</div>
+            <div class="card-inner p-2">
+              <div class="text-xs muted">Monthly Average</div>
+              <div id="roiMonthlySavings" class="text-base font-bold stat-value" style="color: #10b981;">--</div>
             </div>
-            <div class="bg-white rounded p-2 shadow-sm">
-              <div class="text-xs text-gray-600">Net Metering Credit</div>
-              <div id="roiNetMeteringCredit" class="text-sm font-bold text-blue-600">--</div>
+            <div class="card-inner p-2">
+              <div class="text-xs muted">Net Metering Credit</div>
+              <div id="roiNetMeteringCredit" class="text-sm font-bold stat-value" style="color: #0ea5e9;">--</div>
             </div>
-            <div class="bg-white rounded p-2 shadow-sm">
-              <div class="text-xs text-gray-600">Total Generation</div>
-              <div id="roiGeneration" class="text-sm font-bold text-orange-600">--</div>
+            <div class="card-inner p-2">
+              <div class="text-xs muted">Total Generation</div>
+              <div id="roiGeneration" class="text-sm font-bold stat-value" style="color: #f59e0b;">--</div>
             </div>
           </div>
-          <div id="roiMessage" class="text-xs text-gray-600 mt-2 italic"></div>
+          <div id="roiMessage" class="text-xs muted mt-2 italic"></div>
         </div>
       </aside>
       <!-- Main Content -->
       <main class="flex-1 flex flex-col gap-4">
         <!-- Navigation Controls at Top -->
-        <div class="flex flex-col md:flex-row items-center justify-between w-full gap-3 bg-white rounded shadow p-4">
+        <div class="card flex flex-col md:flex-row items-center justify-between w-full gap-3 p-4">
           <div class="flex items-center justify-center gap-2">
-            <button id="prevBtn" class="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">&#8592;</button>
-            <input type="date" id="datePicker" class="border rounded px-2 py-1 text-center" />
-            <button id="nextBtn" class="px-2 py-1 rounded bg-gray-200 text-gray-700 hover:bg-gray-300">&#8594;</button>
+            <button id="prevBtn" class="nav-btn px-3 py-1">&#8592;</button>
+            <input type="date" id="datePicker" class="px-2 py-1 text-center text-sm" />
+            <button id="nextBtn" class="nav-btn px-3 py-1">&#8594;</button>
           </div>
           <div class="flex items-center justify-center gap-4">
-            <div class="inline-flex rounded border bg-gray-200" id="viewToggle">
-              <button id="dayToggle" class="px-2 py-1 rounded-l bg-blue-500 text-white text-sm">Day</button>
-              <button id="weekToggle" class="px-2 py-1 rounded-r text-gray-700 text-sm">Week</button>
+            <div class="inline-flex rounded-lg overflow-hidden" id="viewToggle">
+              <button id="dayToggle" class="toggle-active px-3 py-1 text-sm font-medium">Day</button>
+              <button id="weekToggle" class="toggle-inactive px-3 py-1 text-sm font-medium">Week</button>
             </div>
             <div class="flex gap-1" id="rangeButtons">
-              <button id="rangeToday" class="px-2 py-1 rounded bg-gray-100 text-sm">Today</button>
-              <button id="rangeWeek" class="px-2 py-1 rounded bg-gray-100 text-sm">This Week</button>
+              <button id="rangeToday" class="nav-btn px-3 py-1 text-sm">Today</button>
+              <button id="rangeWeek" class="nav-btn px-3 py-1 text-sm">This Week</button>
             </div>
           </div>
         </div>
 
         <!-- Chart -->
-        <div class="bg-white rounded shadow p-4">
+        <div class="card p-4">
           <canvas id="mainChart" class="w-full h-48"></canvas>
-          <div id="summary" class="text-xs text-center text-gray-600 mt-2"></div>
+          <div id="summary" class="text-xs text-center muted mt-2 stat-value"></div>
         </div>
 
         <!-- Mobile Cards Below Chart -->
         <div id="summaryCardsMobile" class="grid grid-cols-1 xs:grid-cols-2 gap-3 md:hidden sticky top-16 z-10"></div>
 
         <!-- Mobile ROI Summary (hidden on desktop) -->
-        <div class="md:hidden bg-gradient-to-r from-green-50 to-blue-50 rounded shadow p-3 border border-green-200">
-          <h2 class="text-base font-bold text-gray-800 mb-3">☀️ Solar ROI Summary</h2>
+        <div class="md:hidden card p-3">
+          <h2 class="text-base font-bold mb-3" style="color: #f0ebe7;">☀️ Solar ROI Summary</h2>
           <div id="roiSummaryMobile" class="grid grid-cols-2 gap-3">
-            <div class="bg-white rounded p-2 shadow-sm">
-              <div class="text-xs text-gray-600">Total Savings</div>
-              <div id="roiTotalSavingsMobile" class="text-lg font-bold text-green-600">--</div>
+            <div class="card-inner p-2">
+              <div class="text-xs muted">Total Savings</div>
+              <div id="roiTotalSavingsMobile" class="text-lg font-bold stat-value" style="color: #10b981;">--</div>
             </div>
-            <div class="bg-white rounded p-2 shadow-sm">
-              <div class="text-xs text-gray-600">Monthly Average</div>
-              <div id="roiMonthlySavingsMobile" class="text-lg font-bold text-green-600">--</div>
+            <div class="card-inner p-2">
+              <div class="text-xs muted">Monthly Average</div>
+              <div id="roiMonthlySavingsMobile" class="text-lg font-bold stat-value" style="color: #10b981;">--</div>
             </div>
-            <div class="bg-white rounded p-2 shadow-sm">
-              <div class="text-xs text-gray-600">Net Metering Credit</div>
-              <div id="roiNetMeteringCreditMobile" class="text-base font-bold text-blue-600">--</div>
+            <div class="card-inner p-2">
+              <div class="text-xs muted">Net Metering Credit</div>
+              <div id="roiNetMeteringCreditMobile" class="text-base font-bold stat-value" style="color: #0ea5e9;">--</div>
             </div>
-            <div class="bg-white rounded p-2 shadow-sm">
-              <div class="text-xs text-gray-600">Total Generation</div>
-              <div id="roiGenerationMobile" class="text-base font-bold text-orange-600">--</div>
+            <div class="card-inner p-2">
+              <div class="text-xs muted">Total Generation</div>
+              <div id="roiGenerationMobile" class="text-base font-bold stat-value" style="color: #f59e0b;">--</div>
             </div>
           </div>
-          <div id="roiMessageMobile" class="text-xs text-gray-600 mt-2 italic"></div>
+          <div id="roiMessageMobile" class="text-xs muted mt-2 italic"></div>
         </div>
       </main>
     </div>
@@ -114,22 +131,21 @@
       let gen = data.total_generation ? data.total_generation.toLocaleString(undefined, {maximumFractionDigits:0}) : '0';
       let cost = (data.usage_cost !== undefined && data.usage_cost !== null)
           ? `$${data.usage_cost.toLocaleString(undefined, {maximumFractionDigits:0})}` : null;
-      // No partial data warning needed; always show actual available range
       let partial = '';
-      return `<div class="bg-white shadow rounded p-2 sm:p-3 flex flex-col items-center text-xs sm:text-sm w-full">
-        <div class="font-semibold text-gray-700 mb-1">This ${periodLabel}</div>
-        <div class="text-xs text-gray-500">${data.start && data.end ? `${data.start} to ${data.end}` : 'No data available'}</div>
+      return `<div class="card p-2 sm:p-3 flex flex-col items-center text-xs sm:text-sm w-full">
+        <div class="font-semibold mb-1" style="color: #f0ebe7;">This ${periodLabel}</div>
+        <div class="text-xs muted">${data.start && data.end ? `${data.start} to ${data.end}` : 'No data available'}</div>
         <div class="flex flex-row gap-2 my-1">
           <div class="text-center">
-            <div class="text-base sm:text-lg font-bold text-blue-700">${usage} kWh</div>
-            <div class="text-xs text-gray-500">Usage</div>
+            <div class="text-base sm:text-lg font-bold stat-value" style="color: #0ea5e9;">${usage} kWh</div>
+            <div class="text-xs muted">Usage</div>
           </div>
           <div class="text-center">
-            <div class="text-base sm:text-lg font-bold text-green-700">${gen} kWh</div>
-            <div class="text-xs text-gray-500">Generation</div>
+            <div class="text-base sm:text-lg font-bold stat-value" style="color: #10b981;">${gen} kWh</div>
+            <div class="text-xs muted">Generation</div>
           </div>
         </div>
-        ${cost ? `<div class="text-xs sm:text-sm text-gray-600">Est. Cost: <span class="font-semibold">${cost}</span></div>` : ''}
+        ${cost ? `<div class="text-xs sm:text-sm muted">Est. Cost: <span class="font-semibold stat-value" style="color: #f59e0b;">${cost}</span></div>` : ''}
         ${partial}
       </div>`;
     }
@@ -137,29 +153,23 @@
       let periods = ['year','month','week'];
       let cards = await Promise.all(periods.map(p => fetchSummary(p)));
       let html = cards.map((data,i) => cardHtml(periods[i], data)).join('');
-      // Desktop sidebar
       if (document.getElementById('summaryCards')) document.getElementById('summaryCards').innerHTML = html;
-      // Mobile grid
       if (document.getElementById('summaryCardsMobile')) document.getElementById('summaryCardsMobile').innerHTML = html;
     }
     renderSummaryCards();
     </script>
     <script>
-    // Ensure all dashboard JS runs after DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
-      // Utility: format date to YYYY-MM-DD
       function formatDate(date) {
         return date.toISOString().split('T')[0];
       }
 
-      // --- Chart.js Setup ---
+      // --- Chart.js Setup (shadcn dark style) ---
       let chart;
       const chartElem = document.getElementById('mainChart');
-      if (!chartElem) {
-        console.error('Chart canvas #mainChart not found!');
-        return;
-      }
+      if (!chartElem) { console.error('Chart canvas #mainChart not found!'); return; }
       const ctx = chartElem.getContext('2d');
+
       function renderChart(labels, usage, solar) {
         if (chart) chart.destroy();
         chart = new Chart(ctx, {
@@ -170,17 +180,21 @@
               {
                 label: 'Power Usage (kWh)',
                 data: usage,
-                backgroundColor: 'rgba(59,130,246,0.5)',
-                borderColor: 'rgba(59,130,246,1)',
-                borderWidth: 1,
+                backgroundColor: 'rgba(14,165,233,0.35)',
+                borderColor: 'transparent',
+                borderWidth: 0,
+                borderRadius: 6,
+                borderSkipped: false,
                 yAxisID: 'y',
               },
               {
                 label: 'Solar Generation (kWh)',
                 data: solar,
-                backgroundColor: 'rgba(16,185,129,0.4)',
-                borderColor: 'rgba(16,185,129,1)',
-                borderWidth: 1,
+                backgroundColor: 'rgba(16,185,129,0.35)',
+                borderColor: 'transparent',
+                borderWidth: 0,
+                borderRadius: 6,
+                borderSkipped: false,
                 yAxisID: 'y',
               }
             ]
@@ -188,36 +202,56 @@
           options: {
             responsive: true,
             plugins: {
-              legend: { position: 'top' },
-              tooltip: { mode: 'index', intersect: false },
-              zoom: {
-                zoom: {
-                  wheel: { enabled: true, speed: 0.1 },
-                  pinch: { enabled: true },
-                  mode: 'xy'
-                },
-                pan: {
-                  enabled: true,
-                  mode: 'xy'
-                },
-                limits: {
-                  x: { min: 'original', max: 'original' },
-                  y: { min: 'original', max: 'original' }
+              legend: {
+                position: 'top',
+                labels: {
+                  color: '#9b918c',
+                  font: { family: "'DM Sans', sans-serif", size: 12 },
+                  usePointStyle: true,
+                  pointStyle: 'rectRounded',
+                  padding: 20
                 }
+              },
+              tooltip: {
+                mode: 'index',
+                intersect: false,
+                backgroundColor: '#1a1a1a',
+                borderColor: 'rgba(255,255,255,0.08)',
+                borderWidth: 1,
+                cornerRadius: 8,
+                caretSize: 0,
+                titleColor: '#f0ebe7',
+                bodyColor: '#9b918c',
+                titleFont: { family: "'DM Mono', monospace", size: 12 },
+                bodyFont: { family: "'DM Mono', monospace", size: 11 },
+                padding: 12
+              },
+              zoom: {
+                zoom: { wheel: { enabled: true, speed: 0.1 }, pinch: { enabled: true }, mode: 'xy' },
+                pan: { enabled: true, mode: 'xy' },
+                limits: { x: { min: 'original', max: 'original' }, y: { min: 'original', max: 'original' } }
               }
             },
             interaction: { mode: 'nearest', axis: 'x', intersect: false },
             scales: {
-              x: { title: { display: true, text: 'Time' } },
-              y: { title: { display: true, text: 'Energy (kWh)' }, beginAtZero: true }
+              x: {
+                grid: { display: false },
+                border: { display: false },
+                ticks: { color: '#9b918c', font: { family: "'DM Mono', monospace", size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 24 }
+              },
+              y: {
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                border: { display: false },
+                beginAtZero: true,
+                ticks: { color: '#9b918c', font: { family: "'DM Mono', monospace", size: 10 } }
+              }
             }
           }
         });
       }
 
       // --- UI State ---
-      let mode = 'day'; // 'day' or 'week'
-      // Check for date parameter in URL (e.g., from heatmap)
+      let mode = 'day';
       const urlParams = new URLSearchParams(window.location.search);
       const paramDate = urlParams.get('date');
       let selectedDate = paramDate || formatDate(new Date());
@@ -226,11 +260,11 @@
       const weekToggle = document.getElementById('weekToggle');
       function updateToggleButtons() {
         if (mode === 'day') {
-          dayToggle.classList.add('bg-blue-500','text-white');
-          weekToggle.classList.remove('bg-blue-500','text-white');
+          dayToggle.className = 'toggle-active px-3 py-1 text-sm font-medium';
+          weekToggle.className = 'toggle-inactive px-3 py-1 text-sm font-medium';
         } else {
-          weekToggle.classList.add('bg-blue-500','text-white');
-          dayToggle.classList.remove('bg-blue-500','text-white');
+          weekToggle.className = 'toggle-active px-3 py-1 text-sm font-medium';
+          dayToggle.className = 'toggle-inactive px-3 py-1 text-sm font-medium';
         }
       }
       dayToggle.onclick = () => { if (mode !== 'day') { mode = 'day'; updateToggleButtons(); updateChart(); } };
@@ -251,7 +285,7 @@
         updateToggleButtons();
         updateChart();
       };
-      
+
       document.getElementById('datePicker').onchange = (e) => {
         selectedDate = e.target.value;
         mode = 'day';
@@ -259,53 +293,37 @@
         updateChart();
       };
 
-    // Navigation buttons
     document.getElementById('prevBtn').onclick = () => {
       let d = new Date(selectedDate);
-      if (mode === 'day') {
-        d.setDate(d.getDate() - 1);
-      } else {
-        d.setDate(d.getDate() - 7);
-      }
+      if (mode === 'day') { d.setDate(d.getDate() - 1); } else { d.setDate(d.getDate() - 7); }
       selectedDate = formatDate(d);
       document.getElementById('datePicker').value = selectedDate;
       updateChart();
     };
     document.getElementById('nextBtn').onclick = () => {
       let d = new Date(selectedDate);
-      if (mode === 'day') {
-        d.setDate(d.getDate() + 1);
-      } else {
-        d.setDate(d.getDate() + 7);
-      }
+      if (mode === 'day') { d.setDate(d.getDate() + 1); } else { d.setDate(d.getDate() + 7); }
       selectedDate = formatDate(d);
       document.getElementById('datePicker').value = selectedDate;
       updateChart();
     };
 
-    // Process usage and solar data for chart
     function processData(usageData, solarData, mode) {
       let labels = [];
       let usage = [];
       let solar = [];
       if (mode === 'day') {
-        // Generate full 24-hour day: 00:00 to 23:45 in 15-min intervals (96 labels)
         labels = [];
         for (let hour = 0; hour < 24; hour++) {
           for (let min = 0; min < 60; min += 15) {
             labels.push(String(hour).padStart(2, '0') + ':' + String(min).padStart(2, '0'));
           }
         }
-
-        // Create time-based maps from actual data (HH:MM format as key)
         const usageMap = Object.fromEntries(usageData.map(row => [row.timestamp.slice(11, 16), row.power]));
         const solarMap = Object.fromEntries(solarData.map(row => [row.timestamp.slice(11, 16), row.energy]));
-
-        // Fill arrays with actual data where available, 0 where not
         usage = labels.map(label => usageMap[label] || 0);
         solar = labels.map(label => solarMap[label] || 0);
       } else {
-        // Group by date, sum
         const usageByDay = {};
         const solarByDay = {};
         usageData.forEach(row => {
@@ -316,7 +334,6 @@
           const day = row.timestamp.slice(0, 10);
           solarByDay[day] = (solarByDay[day] || 0) + row.energy;
         });
-        // Use solar dates as fallback if usage is empty
         labels = Object.keys(usageByDay).length > 0 ? Object.keys(usageByDay) : Object.keys(solarByDay);
         usage = labels.map(day => usageByDay[day] || 0);
         solar = labels.map(day => solarByDay[day] || 0);
@@ -324,7 +341,6 @@
       return { labels, usage, solar };
     }
 
-    // Fetch usage and solar data for a date range
     async function fetchData(start, end) {
       const usageRes = await fetch(`/power-usage?start=${start}&end=${end}`, { credentials: 'include' });
       const usageData = await usageRes.json();
@@ -346,13 +362,11 @@
       const { usageData, solarData } = await fetchData(start, end);
       const { labels, usage, solar } = processData(usageData, solarData, mode);
       renderChart(labels, usage, solar);
-      // Update summary
       const totalUsage = usage.reduce((a, b) => a + b, 0).toFixed(2);
       const totalSolar = solar.reduce((a, b) => a + b, 0).toFixed(2);
       document.getElementById('summary').textContent = `Total Usage: ${totalUsage} kWh | Total Solar: ${totalSolar} kWh`;
     }
 
-    // Fetch and display ROI summary
     async function updateROI() {
       try {
         const res = await fetch('/roi/summary', { credentials: 'include' });
@@ -364,15 +378,11 @@
           return;
         }
         const data = await res.json();
-
-        // Update desktop ROI
         document.getElementById('roiTotalSavings').textContent = '$' + data.total_savings.toFixed(2);
         document.getElementById('roiMonthlySavings').textContent = '$' + data.monthly_savings.toFixed(2);
         document.getElementById('roiNetMeteringCredit').textContent = '$' + data.net_metering_credit.toFixed(2);
         document.getElementById('roiGeneration').textContent = data.total_generation_kwh.toLocaleString() + ' kWh';
         document.getElementById('roiMessage').textContent = `Solar system installed: ${data.solar_start_date}`;
-
-        // Update mobile ROI
         if (document.getElementById('roiTotalSavingsMobile')) {
           document.getElementById('roiTotalSavingsMobile').textContent = '$' + data.total_savings.toFixed(2);
           document.getElementById('roiMonthlySavingsMobile').textContent = '$' + data.monthly_savings.toFixed(2);
@@ -388,12 +398,10 @@
       }
     }
 
-    // Initial load
-    // Set date picker to current selected date
     document.getElementById('datePicker').value = selectedDate;
     updateChart();
     updateROI();
-  }); // Close DOMContentLoaded handler
+  });
   </script>
 </body>
 </html>

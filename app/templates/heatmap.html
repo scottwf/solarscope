@@ -5,39 +5,68 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Energy Heatmap - SolarScope</title>
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    body { background: #0a0a0a; color: #f0ebe7; font-family: 'DM Sans', sans-serif; }
+    .card { background: #141414; border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; }
+    .muted { color: #9b918c; }
+    .stat-value { font-family: 'DM Mono', monospace; }
+    a.nav-link { color: #0ea5e9; font-size: 0.875rem; text-decoration: none; }
+    a.nav-link:hover { color: #38bdf8; }
+    .legend-box { width: 28px; height: 28px; border-radius: 6px; }
+    .heatmap-cell {
+      width: 30px; height: 30px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 500;
+      color: rgba(255,255,255,0.85); text-decoration: none;
+      transition: transform 0.1s, box-shadow 0.15s;
+    }
+    .heatmap-cell:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 12px rgba(255,255,255,0.1);
+      z-index: 10;
+      position: relative;
+    }
+    .month-label { font-family: 'DM Sans', sans-serif; font-weight: 700; color: #9b918c; font-size: 13px; }
+  </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col">
   <div class="container mx-auto p-4">
     <div class="flex flex-row justify-between items-center mb-6">
       <h1 class="text-3xl font-bold">Energy Heatmap</h1>
-      <a href="/dashboard" class="text-sm text-blue-600 hover:underline">Back to Dashboard</a>
+      <a href="/dashboard" class="nav-link">Back to Dashboard</a>
     </div>
 
     <!-- Legend -->
-    <div class="bg-white rounded shadow p-4 mb-6">
-      <h2 class="text-lg font-semibold mb-3">Legend</h2>
+    <div class="card p-4 mb-6">
+      <h2 class="text-base font-semibold mb-3">Legend</h2>
       <div class="flex flex-wrap gap-6">
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded" style="background-color: #1e3a8a;"></div>
-          <span class="text-sm">Heavy Usage (usage &gt; generation)</span>
+          <div class="legend-box" style="background-color: #1e3a8a;"></div>
+          <span class="text-sm muted">Heavy Usage</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded" style="background-color: #93c5fd;"></div>
-          <span class="text-sm">Slight Deficit (usage ≥ generation)</span>
+          <div class="legend-box" style="background-color: #3b82f6;"></div>
+          <span class="text-sm muted">Slight Deficit</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded" style="background-color: #86efac;"></div>
-          <span class="text-sm">Slight Surplus (generation &gt; usage)</span>
+          <div class="legend-box" style="background-color: #6ee7b7;"></div>
+          <span class="text-sm muted">Slight Surplus</span>
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded" style="background-color: #15803d;"></div>
-          <span class="text-sm">Heavy Surplus (generation &gt;&gt; usage)</span>
+          <div class="legend-box" style="background-color: #15803d;"></div>
+          <span class="text-sm muted">Heavy Surplus</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="legend-box" style="background-color: rgba(255,255,255,0.06);"></div>
+          <span class="text-sm muted">No Data</span>
         </div>
       </div>
     </div>
 
     <!-- Heatmap Container -->
-    <div class="bg-white rounded shadow p-6 overflow-x-auto">
+    <div class="card p-6 overflow-x-auto">
       <div id="heatmapContainer" class="inline-block"></div>
     </div>
   </div>
@@ -50,23 +79,20 @@
     }
 
     function getColorForDay(usage, generation) {
-      // Calculate the ratio of generation to usage
-      // Negative values mean more usage, positive mean more generation
+      if (usage === 0 && generation === 0) return 'rgba(255,255,255,0.04)';
       const ratio = (generation - usage) / Math.max(generation, usage, 1);
+      if (ratio < -0.3) return '#1e3a8a';
+      if (ratio < 0) return '#3b82f6';
+      if (ratio < 0.3) return '#6ee7b7';
+      return '#15803d';
+    }
 
-      if (ratio < -0.3) {
-        // Heavy usage (more than 30% more usage)
-        return '#1e3a8a'; // Dark blue
-      } else if (ratio < 0) {
-        // Slight deficit
-        return '#93c5fd'; // Light blue
-      } else if (ratio < 0.3) {
-        // Slight surplus (up to 30% more generation)
-        return '#86efac'; // Light green
-      } else {
-        // Heavy surplus (more than 30% more generation)
-        return '#15803d'; // Dark green
-      }
+    function getTextColor(usage, generation) {
+      if (usage === 0 && generation === 0) return 'rgba(255,255,255,0.15)';
+      const ratio = (generation - usage) / Math.max(generation, usage, 1);
+      // Dark text on light green, light text on dark backgrounds
+      if (ratio >= 0 && ratio < 0.3) return 'rgba(0,0,0,0.6)';
+      return 'rgba(255,255,255,0.85)';
     }
 
     function renderHeatmap(data) {
@@ -85,41 +111,26 @@
         monthMap[monthKey].days.push(day);
       });
 
-      // Create month columns
-      let html = '<div style="display: flex; gap: 20px; align-items: flex-start;">';
+      let html = '<div style="display: flex; gap: 24px; align-items: flex-start;">';
 
       Object.values(monthMap).forEach(month => {
         html += `<div style="display: flex; flex-direction: column;">`;
-        html += `<div style="font-weight: bold; margin-bottom: 8px; text-align: center; min-width: 50px;">${month.name}</div>`;
+        html += `<div class="month-label" style="margin-bottom: 10px; text-align: center; min-width: 50px;">${month.name}</div>`;
         html += `<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">`;
 
         month.days.forEach(day => {
           const color = getColorForDay(day.usage, day.generation);
+          const textColor = getTextColor(day.usage, day.generation);
           const date = new Date(day.date);
           const dayNum = date.getDate();
           const surplus = day.generation - day.usage;
-          const tooltip = `${day.date}: ${day.usage.toFixed(1)} kWh usage, ${day.generation.toFixed(1)} kWh generation (${surplus > 0 ? '+' : ''}${surplus.toFixed(1)} kWh)`;
+          const tooltip = `${day.date}: ${day.usage.toFixed(1)} kWh usage, ${day.generation.toFixed(1)} kWh gen (${surplus > 0 ? '+' : ''}${surplus.toFixed(1)} kWh)`;
 
           html += `<a
             href="/dashboard?date=${day.date}"
-            style="
-              width: 30px;
-              height: 30px;
-              background-color: ${color};
-              border-radius: 4px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              font-size: 11px;
-              color: white;
-              font-weight: bold;
-              text-decoration: none;
-              cursor: pointer;
-              transition: transform 0.1s;
-            "
+            class="heatmap-cell"
+            style="background-color: ${color}; color: ${textColor};"
             title="${tooltip}"
-            onmouseover="this.style.transform='scale(1.2)'"
-            onmouseout="this.style.transform='scale(1)'"
           >${dayNum}</a>`;
         });
 
@@ -130,7 +141,6 @@
       container.innerHTML = html;
     }
 
-    // Load data on page load
     document.addEventListener('DOMContentLoaded', loadHeatmapData);
   </script>
 </body>
